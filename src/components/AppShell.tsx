@@ -63,12 +63,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-full flex-col">
       <div className="px-5 py-6">
         <Link href="/" className="block" onClick={() => setMobileOpen(false)}>
-          <div className="font-serif text-xl leading-tight gold-text">
-            Sarungallo
-          </div>
-          <div className="text-xs tracking-[0.25em] text-muted uppercase">
-            Holdings
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logo-horizontal-color.svg"
+            alt="Sarungallo Holdings"
+            className="h-9 w-auto"
+          />
         </Link>
       </div>
       <nav className="flex-1 space-y-1 px-3">
@@ -157,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className={cn(
                     "rounded-md px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer",
                     currency === c
-                      ? "bg-gold text-[#0b0e14]"
+                      ? "bg-gold text-[#1c1a18]"
                       : "text-muted hover:text-foreground",
                   )}
                 >
@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-lg bg-gold px-3.5 py-2 text-sm font-semibold text-[#0b0e14] hover:bg-gold-soft disabled:opacity-60 cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-lg bg-gold px-3.5 py-2 text-sm font-semibold text-[#1c1a18] hover:bg-gold-soft disabled:opacity-60 cursor-pointer"
             >
               <RefreshCw
                 size={16}

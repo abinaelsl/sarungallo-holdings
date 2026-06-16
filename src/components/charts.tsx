@@ -17,21 +17,21 @@ import { usePortfolio } from "./PortfolioProvider";
 import { formatIDR, formatUSD } from "@/lib/format";
 
 export const CLASS_COLORS: Record<AssetClass, string> = {
-  real_estate: "#5b8def",
-  equity: "#c8a95b",
-  gold: "#e0b84c",
-  crypto: "#8b7cf0",
+  real_estate: "#7a2e2a", // burgundy
+  equity: "#4f6f52", // forest
+  gold: "#b08d3f", // brass-gold
+  crypto: "#566270", // slate
 };
 
 const SECTOR_PALETTE = [
-  "#c8a95b",
-  "#5b8def",
-  "#3fb98a",
-  "#8b7cf0",
-  "#e0876a",
-  "#56b6c2",
-  "#d98ab5",
-  "#9aa55b",
+  "#b08d3f", // gold
+  "#7a2e2a", // burgundy
+  "#4f6f52", // forest
+  "#566270", // slate
+  "#8c6b2e", // bronze
+  "#a9743f", // copper
+  "#6b6258", // taupe
+  "#9a8c5a", // olive-gold
 ];
 
 function useFmt() {
@@ -118,20 +118,20 @@ export function ValueOverTime({
         <AreaChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="valueFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#c8a95b" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#c8a95b" stopOpacity={0} />
+              <stop offset="0%" stopColor="#b08d3f" stopOpacity={0.28} />
+              <stop offset="100%" stopColor="#b08d3f" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#232a3a" vertical={false} />
+          <CartesianGrid stroke="#e2d8c5" vertical={false} />
           <XAxis
             dataKey="t"
-            tick={{ fill: "#8b93a7", fontSize: 11 }}
+            tick={{ fill: "#6b6258", fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#232a3a" }}
+            axisLine={{ stroke: "#e2d8c5" }}
             minTickGap={24}
           />
           <YAxis
-            tick={{ fill: "#8b93a7", fontSize: 11 }}
+            tick={{ fill: "#6b6258", fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             width={70}
@@ -164,15 +164,15 @@ export function ValueOverTime({
           <Area
             type="monotone"
             dataKey="value"
-            stroke="#c8a95b"
-            strokeWidth={2}
+            stroke="#b08d3f"
+            strokeWidth={2.25}
             fill="url(#valueFill)"
-            dot={data.length < 12 ? { r: 3, fill: "#c8a95b" } : false}
+            dot={data.length < 12 ? { r: 3, fill: "#b08d3f" } : false}
           />
           <Area
             type="monotone"
             dataKey="cost"
-            stroke="#5b6478"
+            stroke="#a99b86"
             strokeWidth={1.5}
             strokeDasharray="4 4"
             fill="none"

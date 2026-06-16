@@ -54,7 +54,7 @@ export default function DashboardPage() {
         </p>
         <Link
           href="/holdings"
-          className="mt-6 inline-block rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-[#0b0e14] hover:bg-gold-soft"
+          className="mt-6 inline-block rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-[#1c1a18] hover:bg-gold-soft"
         >
           Add holdings
         </Link>
@@ -65,12 +65,13 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="font-serif text-2xl text-foreground">Portfolio Overview</h1>
-        <p className="text-sm text-muted">
+        <h1 className="font-serif text-3xl text-foreground">Portfolio Overview</h1>
+        <p className="mt-1 text-sm text-muted">
           {currency === "IDR"
             ? `Valued in Rupiah · USD/IDR ≈ ${fxUsdIdr.toLocaleString("en-US")}`
             : "Valued in US Dollars"}
         </p>
+        <div className="rule-gold mt-4 w-28" />
       </div>
 
       {/* Stat cards */}

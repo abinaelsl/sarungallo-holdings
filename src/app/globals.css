@@ -1,18 +1,24 @@
 @import "tailwindcss";
 
-/* ── Sarungallo Holdings — Family Office theme ───────────────────────── */
+/* ── Sarungallo Holdings — Family-Office brand theme ─────────────────────
+   Warm ivory ground · ink text · brass-gold + burgundy accents.
+   Palette from the brand pack: #F3EEE4 #1C1A18 #B08D3F #7A2E2A #6B6258 #8C6B2E
+   ----------------------------------------------------------------------- */
 :root {
-  --background: #0b0e14;        /* deep charcoal-navy */
-  --surface: #121723;          /* card surface */
-  --surface-2: #1a2030;        /* elevated surface */
-  --border: #232a3a;
-  --foreground: #e8eaf0;
-  --muted: #8b93a7;
-  --gold: #c8a95b;             /* primary accent */
-  --gold-soft: #d8be7e;
-  --gain: #3fb98a;            /* emerald */
-  --loss: #e5604f;            /* coral red */
-  --navy: #1b2a4a;
+  --background: #f3eee4;        /* ivory ground */
+  --surface: #fbf8f1;          /* card surface (slightly lighter than ground) */
+  --surface-2: #efe7d8;        /* inputs / elevated / track */
+  --border: #e2d8c5;           /* warm hairline */
+  --border-strong: #d6c9b0;
+  --foreground: #1c1a18;       /* ink */
+  --ink-soft: #3a2e26;         /* dark brown — strong secondary */
+  --muted: #6b6258;            /* taupe — muted text */
+  --gold: #b08d3f;             /* brass-gold — primary accent */
+  --gold-soft: #8c6b2e;        /* bronze — gold hover / darker */
+  --gold-tint: #ece1c6;        /* gold wash for fills */
+  --burgundy: #7a2e2a;         /* secondary accent */
+  --gain: #4f6f52;             /* sage/forest — positive */
+  --loss: #a23b30;             /* warm red — negative */
 }
 
 @theme inline {
@@ -20,16 +26,19 @@
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-foreground: var(--foreground);
+  --color-ink-soft: var(--ink-soft);
   --color-muted: var(--muted);
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
+  --color-gold-tint: var(--gold-tint);
+  --color-burgundy: var(--burgundy);
   --color-gain: var(--gain);
   --color-loss: var(--loss);
-  --color-navy: var(--navy);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-serif: Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
 * {
@@ -38,34 +47,62 @@
 
 body {
   background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(200, 169, 91, 0.06), transparent 60%),
-    radial-gradient(900px 500px at -10% 10%, rgba(27, 42, 74, 0.35), transparent 55%),
+    radial-gradient(1100px 520px at 88% -8%, rgba(176, 141, 63, 0.10), transparent 60%),
+    radial-gradient(820px 460px at -6% 4%, rgba(122, 46, 42, 0.05), transparent 55%),
     var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* tabular figures for all data/numbers */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .font-serif {
   font-family: var(--font-serif);
+  letter-spacing: -0.01em;
 }
 
-/* thin scrollbars */
-::-webkit-scrollbar { width: 9px; height: 9px; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: var(--surface-2); }
+/* thin warm scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* subtle card */
+/* card surface */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(28, 26, 24, 0.04), 0 1px 12px rgba(28, 26, 24, 0.03);
 }
 
 .gold-text { color: var(--gold); }
+
+/* keyboard focus visibility (a11y) */
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* hairline divider with a faint gold center, for section headers */
+.rule-gold {
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--border) 40%, transparent 100%);
+}
 
 @keyframes spin-slow { to { transform: rotate(360deg); } }
 .animate-spin-slow { animation: spin-slow 1s linear infinite; }
 
 @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .animate-fade-in { animation: fade-in 0.35s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in, .animate-spin-slow { animation: none; }
+  * { scroll-behavior: auto; }
+}

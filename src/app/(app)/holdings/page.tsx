@@ -16,8 +16,8 @@ export default function HoldingsPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-serif text-2xl text-foreground">Holdings</h1>
-          <p className="text-sm text-muted">
+          <h1 className="font-serif text-3xl text-foreground">Holdings</h1>
+          <p className="mt-1 text-sm text-muted">
             Manage every position across all asset classes.
           </p>
         </div>
