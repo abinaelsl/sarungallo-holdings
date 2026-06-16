@@ -180,6 +180,57 @@ function splitSymbol(ticker: string): { symbol: string; exchange?: string } {
   return { symbol: t };
 }
 
+/* ── TradingView public scanner (keyless, works from datacenter IPs) ──── */
+// Maps a ticker suffix to a TradingView exchange prefix.
+const SUFFIX_TV_EXCHANGE: Record<string, string> = {
+  JK: "IDX",
+  L: "LSE",
+  SI: "SGX",
+  T: "TSE",
+  HK: "HKEX",
+  AX: "ASX",
+  TO: "TSX",
+  DE: "XETR",
+  PA: "EURONEXT",
+};
+
+/** Convert a ticker like "BBCA.JK" → "IDX:BBCA". Returns null if no mapping. */
+function toTradingViewSymbol(ticker: string): string | null {
+  const t = ticker.trim().toUpperCase();
+  const dot = t.lastIndexOf(".");
+  if (dot > 0) {
+    const ex = SUFFIX_TV_EXCHANGE[t.slice(dot + 1)];
+    if (ex) return `${ex}:${t.slice(0, dot)}`;
+  }
+  return null;
+}
+
+async function fetchTradingView(
+  equities: Holding[],
+): Promise<Map<string, { price: number; currency: string }>> {
+  const out = new Map<string, { price: number; currency: string }>();
+  await Promise.all(
+    equities.map(async (h) => {
+      if (!h.ticker) return;
+      const tv = toTradingViewSymbol(h.ticker);
+      if (!tv) return;
+      try {
+        const j = await getJson(
+          `https://scanner.tradingview.com/symbol?symbol=${encodeURIComponent(
+            tv,
+          )}&fields=close,currency&no_404=true`,
+        );
+        if (typeof j?.close === "number" && j.close > 0) {
+          out.set(h.id, { price: j.close, currency: j.currency || h.currency || "USD" });
+        }
+      } catch {
+        /* ignore — other providers will try */
+      }
+    }),
+  );
+  return out;
+}
+
 async function fetchStocksTwelveData(
   equities: Holding[],
   apiKey: string,
@@ -260,12 +311,18 @@ async function fetchYahooChart(
 async function fetchStockPrices(
   equities: Holding[],
 ): Promise<Map<string, { price: number; currency: string }>> {
-  let out = new Map<string, { price: number; currency: string }>();
+  // 1) TradingView first — keyless, covers IDX + most exchanges, works from servers.
+  const out = await fetchTradingView(equities);
+
+  // 2) Twelve Data for anything still missing (good for US symbols).
   const apiKey = process.env.TWELVEDATA_API_KEY;
-  if (apiKey) {
-    out = await fetchStocksTwelveData(equities, apiKey);
+  const missing = equities.filter((h) => !out.has(h.id));
+  if (apiKey && missing.length) {
+    const td = await fetchStocksTwelveData(missing, apiKey);
+    for (const [k, v] of td) out.set(k, v);
   }
-  // Yahoo fallback for anything still missing.
+
+  // 3) Yahoo as last resort.
   for (const h of equities) {
     if (out.has(h.id) || !h.ticker) continue;
     const q = await fetchYahooChart(h.ticker);
