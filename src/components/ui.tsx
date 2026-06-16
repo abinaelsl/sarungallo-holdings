@@ -1,0 +1,119 @@
+"use client";
+
+import { cn } from "@/lib/cn";
+import { usePortfolio } from "./PortfolioProvider";
+import { formatIDR, formatUSD } from "@/lib/format";
+
+/* ── Button ──────────────────────────────────────────────────────────── */
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "ghost" | "outline" | "danger";
+  size?: "sm" | "md";
+};
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  className,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
+        size === "sm" ? "px-3 py-1.5 text-sm" : "px-4 py-2 text-sm",
+        variant === "primary" &&
+          "bg-gold text-[#0b0e14] hover:bg-gold-soft font-semibold",
+        variant === "outline" &&
+          "border border-border bg-surface hover:bg-surface-2 text-foreground",
+        variant === "ghost" && "hover:bg-surface-2 text-muted hover:text-foreground",
+        variant === "danger" &&
+          "border border-loss/40 text-loss hover:bg-loss/10",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/* ── Card ────────────────────────────────────────────────────────────── */
+export function Card({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return <div className={cn("card p-5", className)}>{children}</div>;
+}
+
+/* ── Badge ───────────────────────────────────────────────────────────── */
+export function Badge({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "bg-surface-2 text-muted border border-border",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/* ── Money (respects display currency) ───────────────────────────────── */
+export function Money({
+  usd,
+  className,
+  compact,
+}: {
+  usd: number | null | undefined;
+  className?: string;
+  compact?: boolean;
+}) {
+  const { currency, toDisplay } = usePortfolio();
+  const v = toDisplay(usd);
+  const text =
+    currency === "USD" ? formatUSD(v, { compact }) : formatIDR(v);
+  return <span className={className}>{text}</span>;
+}
+
+/* ── Inputs ──────────────────────────────────────────────────────────── */
+export function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-medium text-muted">{label}</span>
+      {children}
+      {hint && <span className="mt-1 block text-xs text-muted/70">{hint}</span>}
+    </label>
+  );
+}
+
+const inputBase =
+  "w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted/50 outline-none focus:border-gold/60 transition-colors";
+
+export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input className={cn(inputBase, props.className)} {...props} />;
+}
+
+export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return <select className={cn(inputBase, "cursor-pointer", props.className)} {...props} />;
+}
+
+export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={cn(inputBase, "min-h-[72px] resize-y", props.className)} {...props} />;
+}

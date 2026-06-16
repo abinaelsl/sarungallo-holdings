@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sarungallo Holdings
 
-## Getting Started
+A private family-office portfolio tracker. Real estate, equities, gold, and
+crypto in one dashboard — valued in USD or IDR, with live price refresh that
+saves a timestamped snapshot each time, so your value-over-time graphs build up.
 
-First, run the development server:
+Rebuilt from the original Base44 app as a self-hosted Next.js application you
+fully own and deploy yourself.
+
+## Features
+
+- **Dashboard** — total value, total invested, unrealized P/L and return;
+  allocation donut by asset class; sector breakdown; value-over-time chart; top
+  movers.
+- **Holdings** — add / edit / delete across four asset classes, with per-asset
+  detail pages.
+- **Live refresh** — one click fetches live prices + FX and writes a snapshot
+  so history accumulates over time.
+- **USD / IDR toggle** — every figure re-denominates instantly.
+- **Password gate** — the whole app sits behind a single access password.
+
+## Tech
+
+Next.js (App Router) · TypeScript · Tailwind v4 · Recharts · Supabase (Postgres).
+
+### Price sources (keyless-first)
+
+| Asset      | Source                          | Key needed |
+| ---------- | ------------------------------- | ---------- |
+| FX (USD/IDR + all currencies) | open.er-api.com   | no |
+| Crypto     | CoinGecko                       | no |
+| Gold (spot, per troy ounce) | gold-api.com           | no |
+| Stocks (IDX `.JK`, US, global) | Twelve Data → Yahoo fallback | **yes** (free) |
+
+Get a free lifetime Twelve Data key at <https://twelvedata.com/pricing> for
+reliable Indonesia Stock Exchange prices. Without it, equities fall back to
+Yahoo, which is frequently rate-limited from server IPs.
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # then fill in the values
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Required env vars are documented in `.env.example`. At minimum set
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Two tables live in Supabase, prefixed `sh_` so they coexist with anything else
+in the project:
 
-## Learn More
+- `sh_holdings` — every position.
+- `sh_snapshots` — one row per refresh (total value, cost, FX, per-class
+  breakdown) — the basis of the history chart.
 
-To learn more about Next.js, take a look at the following resources:
+Both have Row Level Security enabled with **no public policies**: the app reaches
+them only through the server-side service-role key. The public/anon key has no
+access.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy to Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Push this repo to GitHub.
+2. Import it in Vercel (framework auto-detected as Next.js).
+3. Add Environment Variables (Production + Preview):
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `APP_PASSWORD` (your chosen access password)
+   - `SESSION_SECRET` (any long random string)
+   - `TWELVEDATA_API_KEY` (free key)
+4. Deploy, then add your custom domain under Project → Settings → Domains.
 
-## Deploy on Vercel
+## Using it
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Open the app and sign in with `APP_PASSWORD`.
+2. **Holdings** → add positions (real estate uses a manual appraised value;
+   stocks/gold/crypto are priced live).
+3. Hit **Refresh** to pull live prices and save the first snapshot. Refresh
+   whenever you want a new data point — the dashboard chart grows from them.
