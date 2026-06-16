@@ -22,7 +22,6 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "Sarungallo Holdings",
   description: "Private family-office portfolio intelligence.",
-  icons: { icon: "/brand/icon-mark-dark-bg.png" },
 };
 
 export default function RootLayout({
