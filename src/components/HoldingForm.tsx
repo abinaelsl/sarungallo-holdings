@@ -32,6 +32,8 @@ function initialState(h?: Holding | null, presetClass?: AssetClass): FormState {
     unit: h?.unit ?? "",
     currency: h?.currency ?? "USD",
     cost_basis_usd: h?.cost_basis_usd != null ? String(h.cost_basis_usd) : "",
+    annual_dividend_per_share:
+      h?.annual_dividend_per_share != null ? String(h.annual_dividend_per_share) : "",
     manual_value_usd: h?.manual_value_usd != null ? String(h.manual_value_usd) : "",
     exchange: h?.exchange ?? "",
     location: h?.location ?? "",
@@ -74,21 +76,28 @@ export function HoldingForm({
       return;
     }
     setSaving(true);
+    const lock = isTradable && !!holding;
     const payload: Record<string, unknown> = {
       asset_class: form.asset_class,
       name: form.name.trim(),
       ticker: form.ticker.trim() || null,
       sector: form.sector.trim() || null,
-      quantity: form.quantity ? Number(form.quantity) : null,
       unit: form.unit || null,
       currency: form.currency || "USD",
-      cost_basis_usd: form.cost_basis_usd ? Number(form.cost_basis_usd) : 0,
+      annual_dividend_per_share: form.annual_dividend_per_share
+        ? Number(form.annual_dividend_per_share)
+        : null,
       manual_value_usd: form.manual_value_usd ? Number(form.manual_value_usd) : null,
       exchange: form.exchange.trim() || null,
       location: form.location.trim() || null,
       acquisition_date: form.acquisition_date || null,
       notes: form.notes.trim() || null,
     };
+    // Position fields are ledger-managed once a tradable holding exists.
+    if (!lock) {
+      payload.quantity = form.quantity ? Number(form.quantity) : null;
+      payload.cost_basis_usd = form.cost_basis_usd ? Number(form.cost_basis_usd) : 0;
+    }
     const result = holding
       ? await updateHolding(holding.id, payload)
       : await createHolding(payload);
@@ -101,6 +110,9 @@ export function HoldingForm({
   const isGold = cls === "gold";
   const isCrypto = cls === "crypto";
   const isEquity = cls === "equity";
+  const isTradable = isEquity || isCrypto;
+  // Once a tradable holding exists, its position is driven by the Buy/Sell ledger.
+  const lockPosition = isTradable && !!holding;
 
   return (
     <Modal
@@ -174,7 +186,7 @@ export function HoldingForm({
           </datalist>
         </Field>
 
-        {!isRE && (
+        {!isRE && !lockPosition && (
           <Field label={isCrypto ? "Quantity (coins)" : isGold ? "Quantity" : "Quantity (shares)"}>
             <Input
               type="number"
@@ -220,15 +232,40 @@ export function HoldingForm({
           </>
         )}
 
-        <Field label="Cost basis (USD)" hint="Total amount invested">
-          <Input
-            type="number"
-            step="any"
-            value={form.cost_basis_usd}
-            onChange={(e) => set("cost_basis_usd", e.target.value)}
-            placeholder="4753"
-          />
-        </Field>
+        {!lockPosition && (
+          <Field
+            label="Cost basis (USD)"
+            hint={isTradable ? "Total invested — seeds an opening trade" : "Total amount invested"}
+          >
+            <Input
+              type="number"
+              step="any"
+              value={form.cost_basis_usd}
+              onChange={(e) => set("cost_basis_usd", e.target.value)}
+              placeholder="4753"
+            />
+          </Field>
+        )}
+
+        {isEquity && (
+          <Field label="Annual dividend / share" hint="In the trading currency (optional)">
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              value={form.annual_dividend_per_share}
+              onChange={(e) => set("annual_dividend_per_share", e.target.value)}
+              placeholder="e.g. 200"
+            />
+          </Field>
+        )}
+
+        {lockPosition && (
+          <div className="col-span-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5 text-xs text-muted">
+            Quantity and cost basis are managed by the Buy/Sell ledger on this
+            holding&rsquo;s page.
+          </div>
+        )}
 
         {isRE && (
           <Field label="Current value (USD)" hint="Manually appraised value">

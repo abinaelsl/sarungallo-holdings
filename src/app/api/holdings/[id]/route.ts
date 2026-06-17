@@ -12,6 +12,7 @@ const ALLOWED_FIELDS = [
   "unit",
   "currency",
   "cost_basis_usd",
+  "annual_dividend_per_share",
   "manual_value_usd",
   "exchange",
   "location",

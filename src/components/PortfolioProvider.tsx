@@ -26,6 +26,16 @@ interface PortfolioContextValue {
   createHolding: (input: Partial<HoldingInput>) => Promise<Holding | null>;
   updateHolding: (id: string, input: Partial<HoldingInput>) => Promise<Holding | null>;
   deleteHolding: (id: string) => Promise<boolean>;
+  addTransaction: (
+    holdingId: string,
+    input: Record<string, unknown>,
+  ) => Promise<boolean>;
+  deleteTransaction: (txId: string) => Promise<boolean>;
+  addDividend: (
+    holdingId: string,
+    input: Record<string, unknown>,
+  ) => Promise<boolean>;
+  deleteDividend: (divId: string) => Promise<boolean>;
   /** Convert a USD amount into the active display currency. */
   toDisplay: (usd: number | null | undefined) => number | null;
 }
@@ -147,6 +157,56 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     [reload],
   );
 
+  const addTransaction = useCallback(
+    async (holdingId: string, input: Record<string, unknown>) => {
+      const res = await fetch(`/api/holdings/${holdingId}/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setLastError(j.error ?? "Could not save transaction");
+        return false;
+      }
+      await reload();
+      return true;
+    },
+    [reload],
+  );
+
+  const deleteTransaction = useCallback(
+    async (txId: string) => {
+      const res = await fetch(`/api/transactions/${txId}`, { method: "DELETE" });
+      if (!res.ok) return false;
+      await reload();
+      return true;
+    },
+    [reload],
+  );
+
+  const addDividend = useCallback(
+    async (holdingId: string, input: Record<string, unknown>) => {
+      const res = await fetch(`/api/holdings/${holdingId}/dividends`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setLastError(j.error ?? "Could not save dividend");
+        return false;
+      }
+      return true;
+    },
+    [],
+  );
+
+  const deleteDividend = useCallback(async (divId: string) => {
+    const res = await fetch(`/api/dividends/${divId}`, { method: "DELETE" });
+    return res.ok;
+  }, []);
+
   const toDisplay = useCallback(
     (usd: number | null | undefined) => {
       if (usd == null) return null;
@@ -170,6 +230,10 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       createHolding,
       updateHolding,
       deleteHolding,
+      addTransaction,
+      deleteTransaction,
+      addDividend,
+      deleteDividend,
       toDisplay,
     }),
     [
@@ -186,6 +250,10 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       createHolding,
       updateHolding,
       deleteHolding,
+      addTransaction,
+      deleteTransaction,
+      addDividend,
+      deleteDividend,
       toDisplay,
     ],
   );

@@ -18,6 +18,66 @@ export function holdingPnlPct(h: Holding): number | null {
   return (holdingPnlUsd(h) / cost) * 100;
 }
 
+/** Average cost per share/unit in USD. */
+export function avgCostUsd(h: Holding): number | null {
+  if (!h.quantity || h.quantity <= 0) return null;
+  return h.cost_basis_usd / h.quantity;
+}
+
+/**
+ * USD value of one native-currency unit for this holding, derived from the
+ * live price pair when available, otherwise from cost basis, else 1:1.
+ */
+export function usdPerNative(h: Holding): number {
+  if (
+    h.current_price_native != null &&
+    h.current_price_native > 0 &&
+    h.current_price_usd != null
+  ) {
+    return h.current_price_usd / h.current_price_native;
+  }
+  if (h.avg_cost_native != null && h.avg_cost_native > 0) {
+    const acUsd = avgCostUsd(h);
+    if (acUsd != null) return acUsd / h.avg_cost_native;
+  }
+  return 1;
+}
+
+/** Total projected annual dividend in native currency (per-share × shares). */
+export function annualDividendNative(h: Holding): number {
+  const per = h.annual_dividend_per_share ?? 0;
+  if (per <= 0 || !h.quantity || h.quantity <= 0) return 0;
+  return per * h.quantity;
+}
+
+/** Total projected annual dividend converted to USD. */
+export function annualDividendUsd(h: Holding): number {
+  return annualDividendNative(h) * usdPerNative(h);
+}
+
+/** Dividend yield on cost: annual dividend ÷ your average purchase price. */
+export function dividendYieldOnCost(h: Holding): number | null {
+  const per = h.annual_dividend_per_share ?? 0;
+  if (per <= 0) return null;
+  if (h.avg_cost_native != null && h.avg_cost_native > 0) {
+    return (per / h.avg_cost_native) * 100;
+  }
+  const acUsd = avgCostUsd(h);
+  const perUsd = per * usdPerNative(h);
+  if (acUsd != null && acUsd > 0) return (perUsd / acUsd) * 100;
+  return null;
+}
+
+/** Current dividend yield: annual dividend ÷ current market price. */
+export function dividendYieldCurrent(h: Holding): number | null {
+  const per = h.annual_dividend_per_share ?? 0;
+  if (per <= 0) return null;
+  if (h.current_price_native != null && h.current_price_native > 0) {
+    return (per / h.current_price_native) * 100;
+  }
+  return null;
+}
+
 export interface PortfolioTotals {
   totalValueUsd: number;
   totalCostUsd: number;

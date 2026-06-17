@@ -3,49 +3,92 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Building2, LineChart, TrendingUp, CalendarDays, DollarSign } from "lucide-react";
 import { usePortfolio } from "@/components/PortfolioProvider";
-import { Card, Money, Field, Input } from "@/components/ui";
-import { holdingValueUsd } from "@/lib/calc";
+import { Card, Money, Input } from "@/components/ui";
+import { holdingValueUsd, usdPerNative } from "@/lib/calc";
 import { Holding } from "@/lib/types";
-import { formatPct } from "@/lib/format";
+import { formatNumber, formatPct } from "@/lib/format";
 
-const STORAGE_KEY = "sh_income_inputs";
+const RENT_KEY = "sh_income_rent"; // real-estate monthly rent stays local
 
-type IncomeInputs = Record<string, string>; // holdingId -> value string
+type RentInputs = Record<string, string>;
 
-function loadInputs(): IncomeInputs {
+function loadRent(): RentInputs {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+    // Migrate from the older combined key if present.
+    const legacy = localStorage.getItem("sh_income_inputs");
+    const current = localStorage.getItem(RENT_KEY);
+    return JSON.parse(current ?? legacy ?? "{}");
   } catch {
     return {};
   }
 }
 
-function annualIncomeForHolding(h: Holding, raw: string): number {
+function annualRent(raw: string): number {
   const v = parseFloat(raw);
   if (!raw.trim() || isNaN(v) || v <= 0) return 0;
-  if (h.asset_class === "real_estate") {
-    return v * 12; // monthly rent → annual
+  return v * 12; // monthly rent (USD) → annual
+}
+
+/** Annual dividend in USD for an equity, given a per-share native input. */
+function eqAnnualUsd(h: Holding, perShareRaw: string): number {
+  const per = parseFloat(perShareRaw);
+  if (!perShareRaw.trim() || isNaN(per) || per <= 0) return 0;
+  const qty = h.quantity ?? 0;
+  return per * qty * usdPerNative(h);
+}
+
+function eqYieldOnCost(h: Holding, perShareRaw: string): number | null {
+  const per = parseFloat(perShareRaw);
+  if (!perShareRaw.trim() || isNaN(per) || per <= 0) return null;
+  if (h.avg_cost_native != null && h.avg_cost_native > 0) {
+    return (per / h.avg_cost_native) * 100;
   }
-  // equities: yield % applied to current market value
-  return (holdingValueUsd(h) * v) / 100;
+  return null;
 }
 
 export default function IncomePage() {
-  const { holdings, loading } = usePortfolio();
-  const [inputs, setInputs] = useState<IncomeInputs>({});
+  const { holdings, loading, updateHolding } = usePortfolio();
+  const [rent, setRent] = useState<RentInputs>({});
+  // Equity dividend-per-share, seeded from the DB, edited locally, saved on blur.
+  const [div, setDiv] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setInputs(loadInputs());
+    setRent(loadRent());
   }, []);
 
-  const setInput = useCallback((id: string, value: string) => {
-    setInputs((prev) => {
+  // Seed dividend inputs whenever holdings load/refresh.
+  useEffect(() => {
+    setDiv((prev) => {
+      const next = { ...prev };
+      for (const h of holdings) {
+        if (h.asset_class === "equity" && !(h.id in next)) {
+          next[h.id] =
+            h.annual_dividend_per_share != null
+              ? String(h.annual_dividend_per_share)
+              : "";
+        }
+      }
+      return next;
+    });
+  }, [holdings]);
+
+  const setRentInput = useCallback((id: string, value: string) => {
+    setRent((prev) => {
       const next = { ...prev, [id]: value };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      localStorage.setItem(RENT_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
+
+  const saveDiv = useCallback(
+    (h: Holding, value: string) => {
+      const num = value.trim() ? Number(value) : null;
+      if ((h.annual_dividend_per_share ?? null) === num) return;
+      updateHolding(h.id, { annual_dividend_per_share: num } as Record<string, unknown>);
+    },
+    [updateHolding],
+  );
 
   const reHoldings = useMemo(
     () => holdings.filter((h) => h.asset_class === "real_estate"),
@@ -57,18 +100,15 @@ export default function IncomePage() {
   );
 
   const { reAnnual, eqAnnual, totalAnnual, totalCost } = useMemo(() => {
-    const reAnnual = reHoldings.reduce(
-      (sum, h) => sum + annualIncomeForHolding(h, inputs[h.id] ?? ""),
-      0,
-    );
+    const reAnnual = reHoldings.reduce((s, h) => s + annualRent(rent[h.id] ?? ""), 0);
     const eqAnnual = eqHoldings.reduce(
-      (sum, h) => sum + annualIncomeForHolding(h, inputs[h.id] ?? ""),
+      (s, h) => s + eqAnnualUsd(h, div[h.id] ?? ""),
       0,
     );
     const totalAnnual = reAnnual + eqAnnual;
     const totalCost = holdings.reduce((s, h) => s + (h.cost_basis_usd ?? 0), 0);
     return { reAnnual, eqAnnual, totalAnnual, totalCost };
-  }, [holdings, reHoldings, eqHoldings, inputs]);
+  }, [holdings, reHoldings, eqHoldings, rent, div]);
 
   const yieldOnCost = totalCost > 0 ? (totalAnnual / totalCost) * 100 : null;
 
@@ -79,7 +119,8 @@ export default function IncomePage() {
       <div>
         <h1 className="font-serif text-3xl text-foreground">Passive Income</h1>
         <p className="mt-1 text-sm text-muted">
-          Estimated annual income from rent and dividends. Inputs are saved locally.
+          Estimated annual income from rent and dividends. Dividend yields are computed
+          against your average purchase price.
         </p>
         <div className="rule-gold mt-4 w-28" />
       </div>
@@ -94,12 +135,7 @@ export default function IncomePage() {
         <SummaryCard
           icon={DollarSign}
           label="Monthly Income"
-          value={
-            <Money
-              usd={totalAnnual / 12}
-              className="font-serif text-2xl text-foreground"
-            />
-          }
+          value={<Money usd={totalAnnual / 12} className="font-serif text-2xl text-foreground" />}
         />
         <SummaryCard
           icon={TrendingUp}
@@ -112,7 +148,7 @@ export default function IncomePage() {
         />
       </div>
 
-      {/* Income breakdown bar */}
+      {/* Income mix */}
       {totalAnnual > 0 && (
         <Card>
           <h2 className="mb-3 font-serif text-lg">Income Mix</h2>
@@ -122,14 +158,14 @@ export default function IncomePage() {
               <span className="h-2.5 w-2.5 rounded-full bg-gold" />
               Rent{" "}
               <span className="text-foreground">
-                {totalAnnual > 0 ? `${((reAnnual / totalAnnual) * 100).toFixed(1)}%` : "—"}
+                {`${((reAnnual / totalAnnual) * 100).toFixed(1)}%`}
               </span>
             </span>
             <span className="flex items-center gap-2 text-muted">
               <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
               Dividends{" "}
               <span className="text-foreground">
-                {totalAnnual > 0 ? `${((eqAnnual / totalAnnual) * 100).toFixed(1)}%` : "—"}
+                {`${((eqAnnual / totalAnnual) * 100).toFixed(1)}%`}
               </span>
             </span>
           </div>
@@ -151,24 +187,17 @@ export default function IncomePage() {
               <span className="col-span-2 text-right">Annual</span>
             </div>
             {reHoldings.map((h) => {
-              const raw = inputs[h.id] ?? "";
-              const annual = annualIncomeForHolding(h, raw);
-              const yoc =
-                h.cost_basis_usd && annual > 0
-                  ? (annual / h.cost_basis_usd) * 100
-                  : null;
+              const raw = rent[h.id] ?? "";
+              const annual = annualRent(raw);
+              const yoc = h.cost_basis_usd && annual > 0 ? (annual / h.cost_basis_usd) * 100 : null;
               return (
                 <div
                   key={h.id}
                   className="grid grid-cols-12 items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-2/40"
                 >
                   <div className="col-span-4 min-w-0">
-                    <div className="truncate text-sm font-medium text-foreground">
-                      {h.name}
-                    </div>
-                    {h.location && (
-                      <div className="truncate text-xs text-muted">{h.location}</div>
-                    )}
+                    <div className="truncate text-sm font-medium text-foreground">{h.name}</div>
+                    {h.location && <div className="truncate text-xs text-muted">{h.location}</div>}
                   </div>
                   <div className="col-span-3 text-right text-sm text-muted">
                     <Money usd={holdingValueUsd(h)} />
@@ -180,7 +209,7 @@ export default function IncomePage() {
                       min="0"
                       placeholder="0"
                       value={raw}
-                      onChange={(e) => setInput(h.id, e.target.value)}
+                      onChange={(e) => setRentInput(h.id, e.target.value)}
                       className="py-1.5 text-sm"
                     />
                   </div>
@@ -217,46 +246,52 @@ export default function IncomePage() {
           <div className="space-y-1">
             <div className="grid grid-cols-12 gap-3 px-2 pb-1 text-xs uppercase tracking-wide text-muted">
               <span className="col-span-4">Stock</span>
-              <span className="col-span-3 text-right">Market Value</span>
-              <span className="col-span-3">Div. Yield %</span>
+              <span className="col-span-2 text-right">Shares</span>
+              <span className="col-span-3">Annual Div / Share</span>
+              <span className="col-span-1 text-right">YoC</span>
               <span className="col-span-2 text-right">Annual</span>
             </div>
             {eqHoldings.map((h) => {
-              const raw = inputs[h.id] ?? "";
-              const annual = annualIncomeForHolding(h, raw);
-              const value = holdingValueUsd(h);
+              const raw = div[h.id] ?? "";
+              const annual = eqAnnualUsd(h, raw);
+              const yoc = eqYieldOnCost(h, raw);
+              const cur = h.currency || "USD";
               return (
                 <div
                   key={h.id}
                   className="grid grid-cols-12 items-center gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-2/40"
                 >
                   <div className="col-span-4 min-w-0">
-                    <div className="truncate text-sm font-medium text-foreground">
-                      {h.name}
+                    <div className="truncate text-sm font-medium text-foreground">{h.name}</div>
+                    <div className="truncate text-xs text-muted">
+                      {h.ticker ?? "—"}
+                      {h.avg_cost_native != null && (
+                        <> · avg {formatNumber(h.avg_cost_native, 2)} {cur}</>
+                      )}
                     </div>
-                    {h.ticker && (
-                      <div className="truncate text-xs text-muted">{h.ticker}</div>
-                    )}
                   </div>
-                  <div className="col-span-3 text-right text-sm text-muted">
-                    <Money usd={value} />
+                  <div className="col-span-2 text-right text-sm text-muted tnum">
+                    {h.quantity != null ? formatNumber(h.quantity, 0) : "—"}
                   </div>
                   <div className="col-span-3">
                     <div className="relative">
                       <Input
                         type="number"
-                        step="0.01"
+                        step="any"
                         min="0"
-                        max="100"
-                        placeholder="0.00"
+                        placeholder="0"
                         value={raw}
-                        onChange={(e) => setInput(h.id, e.target.value)}
-                        className="py-1.5 pr-7 text-sm"
+                        onChange={(e) => setDiv((p) => ({ ...p, [h.id]: e.target.value }))}
+                        onBlur={(e) => saveDiv(h, e.target.value)}
+                        className="py-1.5 pr-10 text-sm"
                       />
                       <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted">
-                        %
+                        {cur}
                       </span>
                     </div>
+                  </div>
+                  <div className="col-span-1 text-right text-sm text-gold tnum">
+                    {yoc != null ? `${yoc.toFixed(1)}%` : "—"}
                   </div>
                   <div className="col-span-2 text-right">
                     {annual > 0 ? (

@@ -71,6 +71,19 @@ export async function POST() {
     .select()
     .single();
 
+  // 5) Save per-holding snapshots so each position has its own history graph.
+  const capturedAt = snapshot?.captured_at ?? now;
+  const holdingRows = fresh.map((h) => ({
+    holding_id: h.id,
+    captured_at: capturedAt,
+    value_usd: holdingValueUsd(h),
+    cost_usd: h.cost_basis_usd ?? 0,
+    price_native: h.current_price_native ?? null,
+  }));
+  if (holdingRows.length) {
+    await supabase.from("sh_holding_snapshots").insert(holdingRows);
+  }
+
   return NextResponse.json({
     ok: true,
     snapshot,
