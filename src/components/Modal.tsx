@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function Modal({
@@ -27,12 +28,16 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6">
+  const overlay = (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
       <div
-        className="card animate-fade-in flex max-h-[90vh] w-full max-w-lg flex-col"
+        className="card flex w-full max-w-lg flex-col"
+        style={{ maxHeight: "90vh" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
@@ -46,7 +51,12 @@ export function Modal({
           </button>
         </div>
         {/* Body scrolls; header & footer stay pinned so actions are always reachable. */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div
+          className="flex-1 overflow-y-auto px-5 py-4"
+          style={{ minHeight: 0 }}
+        >
+          {children}
+        </div>
         {footer && (
           <div className="flex shrink-0 justify-end gap-2 border-t border-border px-5 py-4">
             {footer}
@@ -55,4 +65,8 @@ export function Modal({
       </div>
     </div>
   );
+
+  // Render on <body> so no ancestor (transform / overflow / stacking context)
+  // can clip or offset the fixed overlay.
+  return createPortal(overlay, document.body);
 }
