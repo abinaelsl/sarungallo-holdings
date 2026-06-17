@@ -132,7 +132,8 @@ export function HoldingForm({
       return;
     }
     setSaving(true);
-    const lock = isTradable && !!holding;
+    // Position stays ledger-managed unless the user opted into a manual fix.
+    const lock = lockPosition;
     const payload: Record<string, unknown> = {
       asset_class: form.asset_class,
       name: form.name.trim(),

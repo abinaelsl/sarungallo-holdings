@@ -107,7 +107,18 @@ const inputBase =
   "w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm text-foreground placeholder:text-muted/50 outline-none focus:border-gold/60 transition-colors";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(inputBase, props.className)} {...props} />;
+  const { onWheel, ...rest } = props;
+  return (
+    <input
+      className={cn(inputBase, props.className)}
+      // Number inputs otherwise capture the wheel and block modal scrolling.
+      onWheel={(e) => {
+        if (rest.type === "number") (e.target as HTMLInputElement).blur();
+        onWheel?.(e);
+      }}
+      {...rest}
+    />
+  );
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
