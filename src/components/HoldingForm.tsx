@@ -61,6 +61,11 @@ function initialState(h?: Holding | null, presetClass?: AssetClass): FormState {
     unit: h?.unit ?? "",
     currency: cls0 === "equity" ? eqCurrency : h?.currency ?? "USD",
     cost_basis_usd: h?.cost_basis_usd != null ? String(h.cost_basis_usd) : "",
+    // Gold is entered as a per-unit cost (per gram/oz); derive it on edit.
+    cost_per_unit_usd:
+      h?.asset_class === "gold" && h?.cost_basis_usd != null && h?.quantity
+        ? String(h.cost_basis_usd / h.quantity)
+        : "",
     // Pre-fill the native average so a manual correction shows current values.
     open_price_native: h?.avg_cost_native != null ? String(h.avg_cost_native) : "",
     annual_dividend_per_share:
@@ -119,6 +124,11 @@ export function HoldingForm({
   const eqCurrency = isEquity ? exMeta?.currency ?? form.currency ?? "USD" : form.currency;
   const usesLots = isEquity && exMeta?.lots === true;
 
+  // Gold cost is entered per unit (per gram/oz) and multiplied by quantity.
+  const goldUnitLabel = form.unit === "g" ? "gram" : "oz";
+  const goldTotalCost =
+    (Number(form.quantity) || 0) * (Number(form.cost_per_unit_usd) || 0);
+
   const setExchange = (v: string) =>
     setForm((f) => {
       const meta = exchangeMeta(v);
@@ -161,6 +171,12 @@ export function HoldingForm({
         if (form.open_price_native) {
           payload.open_price_native = Number(form.open_price_native);
         }
+      } else if (isGold) {
+        // Cost basis = quantity × cost per unit (grams or ounces).
+        const q = form.quantity ? Number(form.quantity) : 0;
+        const per = form.cost_per_unit_usd ? Number(form.cost_per_unit_usd) : 0;
+        payload.quantity = q > 0 ? q : null;
+        payload.cost_basis_usd = q > 0 && per > 0 ? q * per : 0;
       } else {
         payload.quantity = form.quantity ? Number(form.quantity) : null;
         payload.cost_basis_usd = form.cost_basis_usd ? Number(form.cost_basis_usd) : 0;
@@ -273,7 +289,9 @@ export function HoldingForm({
                     ? "e.g. 100 lots"
                     : "e.g. 10.5 shares"
                   : isGold
-                  ? "100"
+                  ? form.unit === "g"
+                    ? "e.g. 5"
+                    : "e.g. 10"
                   : "0.5"
               }
             />
@@ -334,7 +352,29 @@ export function HoldingForm({
           </Field>
         )}
 
-        {!lockPosition && !isEquity && (
+        {!lockPosition && isGold && (
+          <Field
+            label={`Cost per ${goldUnitLabel} (USD)`}
+            hint={
+              goldTotalCost > 0
+                ? `= $${goldTotalCost.toLocaleString("en-US", {
+                    maximumFractionDigits: 2,
+                  })} total cost basis`
+                : "Per-unit price × quantity"
+            }
+          >
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              value={form.cost_per_unit_usd}
+              onChange={(e) => set("cost_per_unit_usd", e.target.value)}
+              placeholder="e.g. 85"
+            />
+          </Field>
+        )}
+
+        {!lockPosition && !isEquity && !isGold && (
           <Field
             label="Cost basis (USD)"
             hint={isCrypto ? "Total invested — seeds an opening trade" : "Total amount invested"}
