@@ -33,7 +33,7 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="card w-full max-w-sm p-8 animate-fade-in">
+      <div className="card accent-top w-full max-w-sm p-8 animate-fade-in">
         <div className="mb-7 flex flex-col items-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -41,7 +41,8 @@ function LoginForm() {
             alt="Sarungallo Holdings"
             className="h-24 w-auto"
           />
-          <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted">
+          <div className="rule-gold mt-5 w-20" />
+          <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-muted">
             <Lock size={12} /> Private access
           </div>
         </div>
@@ -55,7 +56,7 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoFocus
-              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-foreground outline-none focus:border-gold/60"
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-gold/60 focus:ring-2 focus:ring-gold/15"
               placeholder="••••••••"
             />
           </div>
@@ -63,11 +64,14 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-gold px-4 py-2.5 text-sm font-semibold text-[#1c1a18] hover:bg-gold-soft disabled:opacity-60 cursor-pointer"
+            className="w-full rounded-lg bg-gold px-4 py-2.5 text-sm font-semibold text-[#1c1a18] transition-colors hover:bg-gold-soft disabled:opacity-60 cursor-pointer"
           >
             {loading ? "Verifying…" : "Enter"}
           </button>
         </form>
+        <p className="mt-7 text-center text-[11px] uppercase tracking-[0.18em] text-muted/70">
+          Sarungallo Holdings · Family Office
+        </p>
       </div>
     </div>
   );

@@ -21,12 +21,15 @@ export function ClassSection({ assetClass }: { assetClass: AssetClass }) {
   const total = rows.reduce((s, h) => s + holdingValueUsd(h), 0);
 
   return (
-    <section className="card overflow-hidden">
+    <section className="card accent-top overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div className="flex items-center gap-3">
           <span
             className="h-3 w-3 rounded-full"
-            style={{ background: CLASS_COLORS[assetClass] }}
+            style={{
+              background: CLASS_COLORS[assetClass],
+              boxShadow: `0 0 0 4px ${CLASS_COLORS[assetClass]}1f`,
+            }}
           />
           <h2 className="font-serif text-lg">{ASSET_CLASS_LABEL[assetClass]}</h2>
           <Badge>{rows.length}</Badge>

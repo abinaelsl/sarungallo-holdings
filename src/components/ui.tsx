@@ -39,11 +39,50 @@ export function Button({
 export function Card({
   className,
   children,
+  interactive,
+  accent,
+  style,
 }: {
   className?: string;
   children: React.ReactNode;
+  interactive?: boolean;
+  accent?: boolean;
+  style?: React.CSSProperties;
 }) {
-  return <div className={cn("card p-5", className)}>{children}</div>;
+  return (
+    <div
+      className={cn("card p-5", interactive && "card-hover", accent && "accent-top", className)}
+      style={style}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ── Section header (serif title + gold rule) ────────────────────────── */
+export function SectionHeader({
+  title,
+  aside,
+  className,
+}: {
+  title: React.ReactNode;
+  aside?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("mb-4", className)}>
+      <div className="flex items-end justify-between gap-3">
+        <h2 className="font-serif text-lg leading-none text-foreground">{title}</h2>
+        {aside && <div className="text-xs text-muted">{aside}</div>}
+      </div>
+      <div className="rule-gold mt-2.5 w-16" />
+    </div>
+  );
+}
+
+/* ── Skeleton (brand-tinted loading placeholder) ─────────────────────── */
+export function Skeleton({ className }: { className?: string }) {
+  return <div className={cn("skeleton", className)} aria-hidden />;
 }
 
 /* ── Badge ───────────────────────────────────────────────────────────── */

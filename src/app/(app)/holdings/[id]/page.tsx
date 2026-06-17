@@ -11,7 +11,7 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { usePortfolio } from "@/components/PortfolioProvider";
-import { Card, Money, Button, Badge } from "@/components/ui";
+import { Card, Money, Button, Badge, SectionHeader, Skeleton } from "@/components/ui";
 import { HoldingForm } from "@/components/HoldingForm";
 import { TradePanel } from "@/components/TradePanel";
 import { AvgCalcPanel } from "@/components/AvgCalcPanel";
@@ -86,7 +86,21 @@ export default function HoldingDetailPage({
 
   const h = holdings.find((x) => x.id === id);
 
-  if (loading) return <div className="text-muted">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-9 w-64" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-80 w-full" />
+      </div>
+    );
+  }
   if (!h) {
     return (
       <div className="py-20 text-center">
@@ -158,15 +172,18 @@ export default function HoldingDetailPage({
     <div className="space-y-6 animate-fade-in">
       <Link
         href="/holdings"
-        className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground"
+        className="group inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-gold"
       >
-        <ArrowLeft size={15} /> Back to Portfolio
+        <ArrowLeft size={15} className="transition-transform group-hover:-translate-x-0.5" /> Back to Portfolio
       </Link>
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="text-xs uppercase tracking-[0.2em] text-muted">
+            {ASSET_CLASS_LABEL[h.asset_class]}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
             <h1 className="font-serif text-3xl text-foreground">{h.ticker ?? h.name}</h1>
             {h.exchange && <Badge>{h.exchange}</Badge>}
             {h.sector && (
@@ -177,6 +194,7 @@ export default function HoldingDetailPage({
           <p className="mt-0.5 text-sm text-muted">
             Position opened {formatDate(h.acquisition_date)}
           </p>
+          <div className="rule-gold mt-3 w-20" />
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setEditing(true)}>
@@ -242,7 +260,7 @@ export default function HoldingDetailPage({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card>
+          <Card accent interactive>
             <div className="text-xs uppercase tracking-wide text-muted">Current Value</div>
             <Money usd={value} className="mt-1.5 block font-serif text-2xl text-foreground" />
             {currency === "USD" && (
@@ -251,11 +269,11 @@ export default function HoldingDetailPage({
               </div>
             )}
           </Card>
-          <Card>
+          <Card accent interactive>
             <div className="text-xs uppercase tracking-wide text-muted">Cost Basis</div>
             <Money usd={h.cost_basis_usd} className="mt-1.5 block font-serif text-2xl text-foreground" />
           </Card>
-          <Card>
+          <Card accent interactive>
             <div className="text-xs uppercase tracking-wide text-muted">Unrealized P/L</div>
             <div className={`mt-1.5 font-serif text-2xl ${gainClass(pnl)}`}>
               <Money usd={pnl} />
@@ -308,7 +326,7 @@ export default function HoldingDetailPage({
         <Card className="mt-4">
           {activeTab === "performance" && (
             <>
-              <h2 className="mb-4 font-serif text-lg">Performance</h2>
+              <SectionHeader title="Performance" />
               {chartData.length > 0 ? (
                 <ValueOverTime data={chartData} />
               ) : (
@@ -325,7 +343,7 @@ export default function HoldingDetailPage({
 
           {activeTab === "details" && (
             <>
-              <h2 className="mb-4 font-serif text-lg">Details</h2>
+              <SectionHeader title="Details" />
               <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
                 {detailRows.map(([k, v]) => (
                   <div key={k} className="flex justify-between border-b border-border/50 pb-2">
@@ -355,7 +373,7 @@ export default function HoldingDetailPage({
 
           {activeTab === "history" && (
             <>
-              <h2 className="mb-4 font-serif text-lg">Transaction History</h2>
+              <SectionHeader title="Transaction History" />
               {txns.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -435,7 +453,7 @@ export default function HoldingDetailPage({
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <Card className="py-4">
+    <Card accent interactive className="py-4">
       <div className="text-xs uppercase tracking-wide text-muted">{label}</div>
       <div className="mt-1">{children}</div>
     </Card>

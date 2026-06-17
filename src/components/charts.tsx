@@ -58,6 +58,10 @@ export function AllocationDonut({
 
   return (
     <div className="relative h-[260px]">
+      <div
+        className="h-full w-full"
+        style={{ filter: "drop-shadow(0 8px 16px rgba(28,26,24,0.10))" }}
+      >
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -66,8 +70,10 @@ export function AllocationDonut({
             nameKey="name"
             innerRadius={70}
             outerRadius={100}
-            paddingAngle={2}
+            paddingAngle={3}
+            cornerRadius={4}
             stroke="none"
+            animationDuration={650}
           >
             {data.map((d) => (
               <Cell key={d.key} fill={CLASS_COLORS[d.key]} />
@@ -89,8 +95,9 @@ export function AllocationDonut({
           />
         </PieChart>
       </ResponsiveContainer>
+      </div>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xs text-muted">Total</span>
+        <span className="text-xs uppercase tracking-wide text-muted">Total</span>
         <span className="font-serif text-lg text-foreground">{fmt(total)}</span>
       </div>
     </div>
@@ -212,10 +219,11 @@ export function SectorBreakdown({
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-surface-2">
               <div
-                className="h-full rounded-full"
+                className="bar-grow h-full rounded-full"
                 style={{
                   width: `${pct}%`,
                   background: SECTOR_PALETTE[i % SECTOR_PALETTE.length],
+                  animationDelay: `${i * 60}ms`,
                 }}
               />
             </div>
@@ -223,6 +231,31 @@ export function SectorBreakdown({
         );
       })}
     </div>
+  );
+}
+
+/* ── Sparkline (decorative hero trend, no axes) ──────────────────────── */
+export function Sparkline({ data }: { data: { value: number }[] }) {
+  if (data.length < 2) return null;
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={data} margin={{ top: 6, right: 0, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#b08d3f" stopOpacity={0.32} />
+            <stop offset="100%" stopColor="#b08d3f" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <Area
+          type="monotone"
+          dataKey="value"
+          stroke="#b08d3f"
+          strokeWidth={2}
+          fill="url(#sparkFill)"
+          dot={false}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 

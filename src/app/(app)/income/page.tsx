@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { Building2, LineChart, TrendingUp, CalendarDays, DollarSign } from "lucide-react";
 import { usePortfolio } from "@/components/PortfolioProvider";
-import { Card, Money, Input } from "@/components/ui";
+import { Card, Money, Input, SectionHeader, Skeleton } from "@/components/ui";
 import { holdingValueUsd, usdPerNative } from "@/lib/calc";
 import { Holding } from "@/lib/types";
 import { formatNumber, formatPct } from "@/lib/format";
@@ -112,12 +112,25 @@ export default function IncomePage() {
 
   const yieldOnCost = totalCost > 0 ? (totalAnnual / totalCost) * 100 : null;
 
-  if (loading) return <div className="text-muted">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-56" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </div>
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="font-serif text-3xl text-foreground">Passive Income</h1>
+        <div className="text-xs uppercase tracking-[0.2em] text-muted">Cash flow</div>
+        <h1 className="mt-1 font-serif text-3xl text-foreground">Passive Income</h1>
         <p className="mt-1 text-sm text-muted">
           Estimated annual income from rent and dividends. Dividend yields are computed
           against your average purchase price.
@@ -151,18 +164,18 @@ export default function IncomePage() {
       {/* Income mix */}
       {totalAnnual > 0 && (
         <Card>
-          <h2 className="mb-3 font-serif text-lg">Income Mix</h2>
+          <SectionHeader title="Income Mix" />
           <IncomeBar reAnnual={reAnnual} eqAnnual={eqAnnual} total={totalAnnual} />
           <div className="mt-3 flex gap-6 text-sm">
             <span className="flex items-center gap-2 text-muted">
-              <span className="h-2.5 w-2.5 rounded-full bg-gold" />
+              <span className="h-2.5 w-2.5 rounded-full bg-burgundy" />
               Rent{" "}
               <span className="text-foreground">
                 {`${((reAnnual / totalAnnual) * 100).toFixed(1)}%`}
               </span>
             </span>
             <span className="flex items-center gap-2 text-muted">
-              <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
+              <span className="h-2.5 w-2.5 rounded-full bg-gain" />
               Dividends{" "}
               <span className="text-foreground">
                 {`${((eqAnnual / totalAnnual) * 100).toFixed(1)}%`}
@@ -176,7 +189,7 @@ export default function IncomePage() {
       {reHoldings.length > 0 && (
         <Card>
           <div className="mb-4 flex items-center gap-2">
-            <Building2 size={18} className="text-gold" />
+            <Building2 size={18} className="text-burgundy" />
             <h2 className="font-serif text-lg">Real Estate — Rental Income</h2>
           </div>
           <div className="space-y-1">
@@ -240,7 +253,7 @@ export default function IncomePage() {
       {eqHoldings.length > 0 && (
         <Card>
           <div className="mb-4 flex items-center gap-2">
-            <LineChart size={18} className="text-blue-400" />
+            <LineChart size={18} className="text-gain" />
             <h2 className="font-serif text-lg">Equities — Dividend Income</h2>
           </div>
           <div className="space-y-1">
@@ -330,9 +343,9 @@ function SummaryCard({
   value: React.ReactNode;
 }) {
   return (
-    <Card className="py-4">
+    <Card accent interactive className="py-4">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted">
-        <Icon size={14} />
+        <Icon size={14} className="text-gold/70" />
         {label}
       </div>
       <div className="mt-1.5">{value}</div>
@@ -355,10 +368,10 @@ function IncomeBar({
     <div className="h-3 w-full overflow-hidden rounded-full bg-surface-2">
       <div className="flex h-full">
         {rePct > 0 && (
-          <div className="h-full bg-gold transition-all" style={{ width: `${rePct}%` }} />
+          <div className="h-full bg-burgundy transition-all" style={{ width: `${rePct}%` }} />
         )}
         {eqPct > 0 && (
-          <div className="h-full bg-blue-400 transition-all" style={{ width: `${eqPct}%` }} />
+          <div className="h-full bg-gain transition-all" style={{ width: `${eqPct}%` }} />
         )}
       </div>
     </div>
