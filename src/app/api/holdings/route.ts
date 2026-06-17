@@ -72,15 +72,22 @@ export async function POST(req: Request) {
   // average cost is computed correctly.
   const cls = data.asset_class as string;
   const qty = Number(data.quantity);
-  const costUsd = Number(data.cost_basis_usd);
-  if ((cls === "equity" || cls === "crypto") && qty > 0 && costUsd > 0) {
+  if ((cls === "equity" || cls === "crypto") && qty > 0) {
     const cur = (data.currency as string)?.toUpperCase() || "USD";
     let fxRate = 1;
     if (cur !== "USD") {
       const rates = await getFxRates();
       fxRate = rates[cur] && rates[cur] > 0 ? rates[cur] : 1;
     }
-    const priceNative = (costUsd * fxRate) / qty;
+    // Prefer an explicit native opening price; otherwise derive from USD cost.
+    let priceNative = Number(body.open_price_native);
+    if (!Number.isFinite(priceNative) || priceNative <= 0) {
+      const costUsd = Number(data.cost_basis_usd);
+      priceNative = costUsd > 0 ? (costUsd * fxRate) / qty : NaN;
+    }
+    if (!Number.isFinite(priceNative) || priceNative <= 0) {
+      return NextResponse.json({ holding: data }, { status: 201 });
+    }
     await supabase.from("sh_transactions").insert({
       holding_id: data.id,
       type: "buy",

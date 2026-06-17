@@ -22,20 +22,47 @@ const SECTOR_SUGGESTIONS = [
 
 type FormState = Record<string, string>;
 
+// Supported equity exchanges. IDX trades in lots of 100 (IDR); US in shares (USD).
+const EXCHANGES: { value: string; label: string; currency: string | null; lots: boolean }[] = [
+  { value: "IDX", label: "IDX — Indonesia (IDR, lots)", currency: "IDR", lots: true },
+  { value: "NASDAQ", label: "NASDAQ — US (USD, shares)", currency: "USD", lots: false },
+  { value: "NYSE", label: "NYSE — US (USD, shares)", currency: "USD", lots: false },
+  { value: "Other", label: "Other", currency: null, lots: false },
+];
+
+function exchangeMeta(value: string) {
+  return EXCHANGES.find((e) => e.value === value);
+}
+
+/** Best-guess exchange for an existing/new equity, so the dropdown has a value. */
+function normalizeExchange(h?: Holding | null): string {
+  if (!h) return "IDX";
+  const ex = (h.exchange || "").toUpperCase();
+  if (ex === "IDX" || ex === "NASDAQ" || ex === "NYSE") return ex;
+  if (h.ticker?.toUpperCase().endsWith(".JK") || (h.currency || "").toUpperCase() === "IDR")
+    return "IDX";
+  if ((h.currency || "").toUpperCase() === "USD") return "NASDAQ";
+  return "Other";
+}
+
 function initialState(h?: Holding | null, presetClass?: AssetClass): FormState {
+  const cls0 = (h?.asset_class ?? presetClass ?? "equity") as AssetClass;
+  const eqExchange = normalizeExchange(h);
+  const eqCurrency = exchangeMeta(eqExchange)?.currency ?? h?.currency ?? "USD";
   return {
-    asset_class: h?.asset_class ?? presetClass ?? "equity",
+    asset_class: cls0,
     name: h?.name ?? "",
     ticker: h?.ticker ?? "",
     sector: h?.sector ?? "",
     quantity: h?.quantity != null ? String(h.quantity) : "",
     unit: h?.unit ?? "",
-    currency: h?.currency ?? "USD",
+    currency: cls0 === "equity" ? eqCurrency : h?.currency ?? "USD",
     cost_basis_usd: h?.cost_basis_usd != null ? String(h.cost_basis_usd) : "",
+    open_price_native: "",
     annual_dividend_per_share:
       h?.annual_dividend_per_share != null ? String(h.annual_dividend_per_share) : "",
     manual_value_usd: h?.manual_value_usd != null ? String(h.manual_value_usd) : "",
-    exchange: h?.exchange ?? "",
+    exchange: cls0 === "equity" ? eqExchange : h?.exchange ?? "",
     location: h?.location ?? "",
     acquisition_date: h?.acquisition_date ?? "",
     notes: h?.notes ?? "",
@@ -69,6 +96,26 @@ export function HoldingForm({
   const cls = form.asset_class as AssetClass;
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
+  const isRE = cls === "real_estate";
+  const isGold = cls === "gold";
+  const isCrypto = cls === "crypto";
+  const isEquity = cls === "equity";
+  const isTradable = isEquity || isCrypto;
+  // Once a tradable holding exists, its position is driven by the Buy/Sell ledger.
+  const lockPosition = isTradable && !!holding;
+
+  // Equity exchange drives currency and whether the position is counted in lots.
+  const exVal = isEquity ? form.exchange || "IDX" : form.exchange;
+  const exMeta = exchangeMeta(exVal);
+  const eqCurrency = isEquity ? exMeta?.currency ?? form.currency ?? "USD" : form.currency;
+  const usesLots = isEquity && exMeta?.lots === true;
+
+  const setExchange = (v: string) =>
+    setForm((f) => {
+      const meta = exchangeMeta(v);
+      return { ...f, exchange: v, currency: meta?.currency ?? f.currency };
+    });
+
   async function submit() {
     setError(null);
     if (!form.name.trim()) {
@@ -83,20 +130,30 @@ export function HoldingForm({
       ticker: form.ticker.trim() || null,
       sector: form.sector.trim() || null,
       unit: form.unit || null,
-      currency: form.currency || "USD",
+      currency: isEquity ? eqCurrency : form.currency || "USD",
       annual_dividend_per_share: form.annual_dividend_per_share
         ? Number(form.annual_dividend_per_share)
         : null,
       manual_value_usd: form.manual_value_usd ? Number(form.manual_value_usd) : null,
-      exchange: form.exchange.trim() || null,
+      exchange: isEquity ? exVal : form.exchange.trim() || null,
       location: form.location.trim() || null,
       acquisition_date: form.acquisition_date || null,
       notes: form.notes.trim() || null,
     };
     // Position fields are ledger-managed once a tradable holding exists.
     if (!lock) {
-      payload.quantity = form.quantity ? Number(form.quantity) : null;
-      payload.cost_basis_usd = form.cost_basis_usd ? Number(form.cost_basis_usd) : 0;
+      if (isEquity) {
+        const rawQty = form.quantity ? Number(form.quantity) : 0;
+        const shares = usesLots ? rawQty * 100 : rawQty;
+        payload.quantity = shares > 0 ? shares : null;
+        // Native opening price → backend seeds an opening trade & derives USD cost.
+        if (form.open_price_native) {
+          payload.open_price_native = Number(form.open_price_native);
+        }
+      } else {
+        payload.quantity = form.quantity ? Number(form.quantity) : null;
+        payload.cost_basis_usd = form.cost_basis_usd ? Number(form.cost_basis_usd) : 0;
+      }
     }
     const result = holding
       ? await updateHolding(holding.id, payload)
@@ -105,14 +162,6 @@ export function HoldingForm({
     if (result) onClose();
     else setError("Could not save. Check the fields and try again.");
   }
-
-  const isRE = cls === "real_estate";
-  const isGold = cls === "gold";
-  const isCrypto = cls === "crypto";
-  const isEquity = cls === "equity";
-  const isTradable = isEquity || isCrypto;
-  // Once a tradable holding exists, its position is driven by the Buy/Sell ledger.
-  const lockPosition = isTradable && !!holding;
 
   return (
     <Modal
@@ -187,13 +236,34 @@ export function HoldingForm({
         </Field>
 
         {!isRE && !lockPosition && (
-          <Field label={isCrypto ? "Quantity (coins)" : isGold ? "Quantity" : "Quantity (shares)"}>
+          <Field
+            label={
+              isEquity
+                ? usesLots
+                  ? "Lots owned"
+                  : "Shares owned"
+                : isCrypto
+                ? "Quantity (coins)"
+                : isGold
+                ? "Quantity"
+                : "Quantity (shares)"
+            }
+            hint={usesLots ? "1 lot = 100 shares" : undefined}
+          >
             <Input
               type="number"
-              step="any"
+              step={usesLots ? "1" : "any"}
               value={form.quantity}
               onChange={(e) => set("quantity", e.target.value)}
-              placeholder={isEquity ? "10000" : isGold ? "100" : "0.5"}
+              placeholder={
+                isEquity
+                  ? usesLots
+                    ? "e.g. 100 lots"
+                    : "e.g. 10.5 shares"
+                  : isGold
+                  ? "100"
+                  : "0.5"
+              }
             />
           </Field>
         )}
@@ -209,33 +279,53 @@ export function HoldingForm({
 
         {isEquity && (
           <>
-            <Field label="Trading currency" hint="IDX stocks trade in IDR">
-              <Select
-                value={form.currency}
-                onChange={(e) => set("currency", e.target.value)}
-              >
-                <option value="USD">USD</option>
-                <option value="IDR">IDR</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-                <option value="SGD">SGD</option>
-                <option value="JPY">JPY</option>
+            <Field label="Exchange" hint="Sets currency & lots vs. shares">
+              <Select value={exVal} onChange={(e) => setExchange(e.target.value)}>
+                {EXCHANGES.map((e) => (
+                  <option key={e.value} value={e.value}>
+                    {e.label}
+                  </option>
+                ))}
               </Select>
             </Field>
-            <Field label="Exchange">
-              <Input
-                value={form.exchange}
-                onChange={(e) => set("exchange", e.target.value)}
-                placeholder="IDX"
-              />
-            </Field>
+            {exVal === "Other" && (
+              <Field label="Trading currency">
+                <Select
+                  value={form.currency}
+                  onChange={(e) => set("currency", e.target.value)}
+                >
+                  <option value="USD">USD</option>
+                  <option value="IDR">IDR</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="SGD">SGD</option>
+                  <option value="JPY">JPY</option>
+                </Select>
+              </Field>
+            )}
           </>
         )}
 
-        {!lockPosition && (
+        {isEquity && !lockPosition && (
+          <Field
+            label={`Avg. buy price (${eqCurrency} per share)`}
+            hint="Seeds your opening position"
+          >
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              value={form.open_price_native}
+              onChange={(e) => set("open_price_native", e.target.value)}
+              placeholder={usesLots ? "e.g. 7800" : "e.g. 150"}
+            />
+          </Field>
+        )}
+
+        {!lockPosition && !isEquity && (
           <Field
             label="Cost basis (USD)"
-            hint={isTradable ? "Total invested — seeds an opening trade" : "Total amount invested"}
+            hint={isCrypto ? "Total invested — seeds an opening trade" : "Total amount invested"}
           >
             <Input
               type="number"
@@ -248,7 +338,10 @@ export function HoldingForm({
         )}
 
         {isEquity && (
-          <Field label="Annual dividend / share" hint="In the trading currency (optional)">
+          <Field
+            label={`Annual dividend / share (${eqCurrency})`}
+            hint="Optional — used for yield"
+          >
             <Input
               type="number"
               step="any"
