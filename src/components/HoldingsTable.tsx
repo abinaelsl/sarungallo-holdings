@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { Holding, AssetClass, ASSET_CLASS_LABEL } from "@/lib/types";
-import { holdingValueUsd, holdingPnlUsd, holdingPnlPct } from "@/lib/calc";
+import { holdingValueUsd, holdingPnlUsd, holdingPnlPct, lotSize } from "@/lib/calc";
 import { Money, Button, Badge } from "./ui";
 import { formatNumber, formatPct, gainClass } from "@/lib/format";
 import { HoldingForm } from "./HoldingForm";
@@ -81,9 +81,20 @@ export function ClassSection({ assetClass }: { assetClass: AssetClass }) {
                     </td>
                     <td className="px-3 py-3 text-muted">{h.ticker ?? "—"}</td>
                     <td className="px-3 py-3 text-right text-muted">
-                      {h.quantity != null
-                        ? `${formatNumber(h.quantity, 4)}${h.unit ? " " + h.unit : ""}`
-                        : "—"}
+                      {h.quantity != null ? (
+                        lotSize(h) > 1 ? (
+                          <div>
+                            <div>{formatNumber(h.quantity / lotSize(h), 0)} lots</div>
+                            <div className="text-xs text-muted/70">
+                              {formatNumber(h.quantity, 0)} shares
+                            </div>
+                          </div>
+                        ) : (
+                          `${formatNumber(h.quantity, 4)}${h.unit ? " " + h.unit : ""}`
+                        )
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-3 py-3 text-right text-muted">
                       <Money usd={h.cost_basis_usd} />

@@ -36,6 +36,26 @@ export function formatIDR(value: number | null | undefined): string {
   return `Rp ${Math.round(value).toLocaleString("en-US")}`;
 }
 
+/** Format a value in its native trading currency (IDR uses id-ID grouping). */
+export function formatNative(
+  value: number | null | undefined,
+  currency: string,
+  opts?: { compact?: boolean; maxDigits?: number },
+): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  const cur = (currency || "USD").toUpperCase();
+  if (cur === "USD") return formatUSD(value, { compact: opts?.compact });
+  if (cur === "IDR") {
+    if (opts?.compact) return formatIDR(value);
+    return `Rp ${value.toLocaleString("id-ID", {
+      maximumFractionDigits: opts?.maxDigits ?? 2,
+    })}`;
+  }
+  return `${value.toLocaleString("en-US", {
+    maximumFractionDigits: opts?.maxDigits ?? 2,
+  })} ${cur}`;
+}
+
 export function formatNumber(value: number | null | undefined, digits = 2): string {
   if (value == null || Number.isNaN(value)) return "—";
   return value.toLocaleString("en-US", { maximumFractionDigits: digits });

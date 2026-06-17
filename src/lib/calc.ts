@@ -24,6 +24,26 @@ export function avgCostUsd(h: Holding): number | null {
   return h.cost_basis_usd / h.quantity;
 }
 
+/** Indonesian exchange equities trade in lots of 100 shares. */
+export function isIdx(h: Holding): boolean {
+  return (
+    h.ticker?.toUpperCase().endsWith(".JK") === true ||
+    h.exchange?.toUpperCase() === "IDX" ||
+    (h.asset_class === "equity" && (h.currency || "").toUpperCase() === "IDR")
+  );
+}
+
+/** Shares per tradable lot — 100 for IDX, 1 everywhere else. */
+export function lotSize(h: Holding): number {
+  return isIdx(h) ? 100 : 1;
+}
+
+/** Native currency units per 1 USD for this holding (inverse of usdPerNative). */
+export function nativePerUsd(h: Holding): number {
+  const r = usdPerNative(h);
+  return r > 0 ? 1 / r : 1;
+}
+
 /**
  * USD value of one native-currency unit for this holding, derived from the
  * live price pair when available, otherwise from cost basis, else 1:1.
