@@ -49,16 +49,20 @@ function initialState(h?: Holding | null, presetClass?: AssetClass): FormState {
   const cls0 = (h?.asset_class ?? presetClass ?? "equity") as AssetClass;
   const eqExchange = normalizeExchange(h);
   const eqCurrency = exchangeMeta(eqExchange)?.currency ?? h?.currency ?? "USD";
+  const eqUsesLots = cls0 === "equity" && exchangeMeta(eqExchange)?.lots === true;
   return {
     asset_class: cls0,
     name: h?.name ?? "",
     ticker: h?.ticker ?? "",
     sector: h?.sector ?? "",
-    quantity: h?.quantity != null ? String(h.quantity) : "",
+    // Quantity is held in display units: lots for IDX equities, else shares.
+    quantity:
+      h?.quantity != null ? String(eqUsesLots ? h.quantity / 100 : h.quantity) : "",
     unit: h?.unit ?? "",
     currency: cls0 === "equity" ? eqCurrency : h?.currency ?? "USD",
     cost_basis_usd: h?.cost_basis_usd != null ? String(h.cost_basis_usd) : "",
-    open_price_native: "",
+    // Pre-fill the native average so a manual correction shows current values.
+    open_price_native: h?.avg_cost_native != null ? String(h.avg_cost_native) : "",
     annual_dividend_per_share:
       h?.annual_dividend_per_share != null ? String(h.annual_dividend_per_share) : "",
     manual_value_usd: h?.manual_value_usd != null ? String(h.manual_value_usd) : "",
@@ -84,6 +88,8 @@ export function HoldingForm({
   const [form, setForm] = useState<FormState>(() => initialState(holding, presetClass));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Manual position correction (rewrites the trade ledger to one opening lot).
+  const [overridePos, setOverridePos] = useState(false);
 
   // Re-seed when the target holding changes.
   const [seededFor, setSeededFor] = useState(holding?.id ?? presetClass ?? "new");
@@ -91,6 +97,7 @@ export function HoldingForm({
   if (seedKey !== seededFor) {
     setForm(initialState(holding, presetClass));
     setSeededFor(seedKey);
+    setOverridePos(false);
   }
 
   const cls = form.asset_class as AssetClass;
@@ -101,8 +108,10 @@ export function HoldingForm({
   const isCrypto = cls === "crypto";
   const isEquity = cls === "equity";
   const isTradable = isEquity || isCrypto;
-  // Once a tradable holding exists, its position is driven by the Buy/Sell ledger.
-  const lockPosition = isTradable && !!holding;
+  // A tradable holding's position is ledger-driven — locked unless the user
+  // opts into a manual correction.
+  const lockPosition = isTradable && !!holding && !overridePos;
+  const doReset = isTradable && !!holding && overridePos;
 
   // Equity exchange drives currency and whether the position is counted in lots.
   const exVal = isEquity ? form.exchange || "IDX" : form.exchange;
@@ -140,7 +149,8 @@ export function HoldingForm({
       acquisition_date: form.acquisition_date || null,
       notes: form.notes.trim() || null,
     };
-    // Position fields are ledger-managed once a tradable holding exists.
+    // Position fields are ledger-managed once a tradable holding exists, unless
+    // the user is correcting them manually (doReset rewrites the ledger).
     if (!lock) {
       if (isEquity) {
         const rawQty = form.quantity ? Number(form.quantity) : 0;
@@ -154,6 +164,7 @@ export function HoldingForm({
         payload.quantity = form.quantity ? Number(form.quantity) : null;
         payload.cost_basis_usd = form.cost_basis_usd ? Number(form.cost_basis_usd) : 0;
       }
+      if (doReset) payload.reset_position = true;
     }
     const result = holding
       ? await updateHolding(holding.id, payload)
@@ -353,10 +364,23 @@ export function HoldingForm({
           </Field>
         )}
 
-        {lockPosition && (
-          <div className="col-span-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5 text-xs text-muted">
-            Quantity and cost basis are managed by the Buy/Sell ledger on this
-            holding&rsquo;s page.
+        {isTradable && !!holding && (
+          <div className="col-span-2 rounded-lg border border-border bg-surface-2/50 px-3 py-2.5">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={overridePos}
+                onChange={(e) => setOverridePos(e.target.checked)}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-[var(--gold)]"
+              />
+              <span className="text-xs text-muted">
+                <span className="font-medium text-foreground">Correct position manually</span>
+                <br />
+                Normally the position is managed by the Buy/Sell ledger. Tick this to
+                overwrite the {usesLots ? "lots" : "shares"} owned and average price —
+                this resets the trade history to a single opening lot.
+              </span>
+            </label>
           </div>
         )}
 

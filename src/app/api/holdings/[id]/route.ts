@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getFxRates } from "@/lib/prices";
+import { recomputeHolding } from "@/lib/positions";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +65,47 @@ export async function PUT(
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Manual position correction: rewrite the ledger to a single opening lot so
+  // the corrected quantity / average becomes the source of truth.
+  const cls = data.asset_class as string;
+  if (body.reset_position === true && (cls === "equity" || cls === "crypto")) {
+    const shares = Number(data.quantity);
+    const cur = (data.currency as string)?.toUpperCase() || "USD";
+    let fxRate = 1;
+    if (cur !== "USD") {
+      const rates = await getFxRates();
+      fxRate = rates[cur] && rates[cur] > 0 ? rates[cur] : 1;
+    }
+    let priceNative = Number(body.open_price_native);
+    if (!Number.isFinite(priceNative) || priceNative <= 0) {
+      const costUsd = Number(data.cost_basis_usd);
+      priceNative = shares > 0 && costUsd > 0 ? (costUsd * fxRate) / shares : NaN;
+    }
+
+    await supabase.from("sh_transactions").delete().eq("holding_id", id);
+    if (shares > 0 && Number.isFinite(priceNative) && priceNative > 0) {
+      await supabase.from("sh_transactions").insert({
+        holding_id: id,
+        type: "buy",
+        trade_date: (data.acquisition_date as string) || new Date().toISOString().slice(0, 10),
+        shares,
+        price_native: priceNative,
+        fees_native: 0,
+        currency: cur,
+        fx_rate: fxRate,
+        notes: "Opening balance (corrected)",
+      });
+    }
+    await recomputeHolding(supabase, id);
+    const { data: fresh } = await supabase
+      .from("sh_holdings")
+      .select("*")
+      .eq("id", id)
+      .single();
+    return NextResponse.json({ holding: fresh ?? data });
+  }
+
   return NextResponse.json({ holding: data });
 }
 
