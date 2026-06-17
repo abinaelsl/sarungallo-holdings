@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { usePortfolio } from "./PortfolioProvider";
+import { ThemeToggle } from "./ThemeToggle";
 import { formatDateTime } from "@/lib/format";
 
 const NAV = [
@@ -69,7 +70,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <img
             src="/brand/logo-horizontal-color.svg"
             alt="Sarungallo Holdings"
-            className="h-9 w-auto"
+            className="h-9 w-auto dark:hidden"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logo-horizontal-reversed-white.svg"
+            alt="Sarungallo Holdings"
+            className="hidden h-9 w-auto dark:block"
           />
         </Link>
         <div className="mt-3 text-[10px] uppercase tracking-[0.22em] text-muted">
@@ -157,6 +164,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
             {/* Currency toggle */}
             <div className="flex rounded-lg border border-border bg-surface p-0.5">
               {(["USD", "IDR"] as const).map((c) => (

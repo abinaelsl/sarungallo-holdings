@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { ThemeProviders } from "@/components/ThemeProviders";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,9 +33,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <ThemeProviders>{children}</ThemeProviders>
+      </body>
     </html>
   );
 }

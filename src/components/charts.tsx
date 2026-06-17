@@ -129,16 +129,16 @@ export function ValueOverTime({
               <stop offset="100%" stopColor="#b08d3f" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#e2d8c5" vertical={false} />
+          <CartesianGrid stroke="var(--color-border)" vertical={false} />
           <XAxis
             dataKey="t"
-            tick={{ fill: "#6b6258", fontSize: 11 }}
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
             tickLine={false}
-            axisLine={{ stroke: "#e2d8c5" }}
+            axisLine={{ stroke: "var(--color-border)" }}
             minTickGap={24}
           />
           <YAxis
-            tick={{ fill: "#6b6258", fontSize: 11 }}
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
             tickLine={false}
             axisLine={false}
             width={70}
@@ -179,7 +179,7 @@ export function ValueOverTime({
           <Area
             type="monotone"
             dataKey="cost"
-            stroke="#a99b86"
+            stroke="var(--color-muted)"
             strokeWidth={1.5}
             strokeDasharray="4 4"
             fill="none"

@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function LoginForm() {
   const router = useRouter();
@@ -32,14 +33,23 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="relative flex min-h-screen items-center justify-center p-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <div className="card accent-top w-full max-w-sm p-8 animate-fade-in">
         <div className="mb-7 flex flex-col items-center text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/logo-stacked-color.svg"
             alt="Sarungallo Holdings"
-            className="h-24 w-auto"
+            className="h-24 w-auto dark:hidden"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/brand/logo-horizontal-reversed-white.svg"
+            alt="Sarungallo Holdings"
+            className="hidden h-12 w-auto dark:block"
           />
           <div className="rule-gold mt-5 w-20" />
           <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-muted">

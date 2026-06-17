@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (next-themes attribute="class") */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Sarungallo Holdings — Family-Office brand theme ─────────────────────
    Warm ivory ground · ink text · brass-gold + burgundy accents.
    Palette from the brand pack: #F3EEE4 #1C1A18 #B08D3F #7A2E2A #6B6258 #8C6B2E
@@ -19,6 +22,27 @@
   --burgundy: #7a2e2a;         /* secondary accent */
   --gain: #4f6f52;             /* sage/forest — positive */
   --loss: #a23b30;             /* warm red — negative */
+}
+
+/* ── Dark theme — warm espresso ground, lifted brass + accents ──────────
+   Same family-office identity after dark: deep walnut surfaces, ivory text,
+   gold/sage/burgundy lifted just enough to stay legible on a dark ground.
+   ----------------------------------------------------------------------- */
+.dark {
+  --background: #15110e;       /* warm espresso near-black */
+  --surface: #1e1916;          /* lifted card surface */
+  --surface-2: #292320;        /* inputs / elevated / track */
+  --border: #38312b;           /* warm hairline */
+  --border-strong: #4a423a;
+  --foreground: #f1ebe0;       /* warm ivory text */
+  --ink-soft: #d6cabb;         /* strong secondary */
+  --muted: #a89d8e;            /* taupe — muted text (lifted for contrast) */
+  --gold: #c8a455;             /* brass-gold, lifted for dark */
+  --gold-soft: #b08d3f;        /* gold hover / darker */
+  --gold-tint: #2c2417;        /* dark brass wash for fills */
+  --burgundy: #c06a61;         /* burgundy lifted for legibility */
+  --gain: #82b187;             /* sage lifted */
+  --loss: #db7a6e;             /* warm red lifted */
 }
 
 @theme inline {
@@ -55,6 +79,14 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+.dark body {
+  background:
+    radial-gradient(1100px 520px at 88% -8%, rgba(200, 164, 85, 0.10), transparent 60%),
+    radial-gradient(820px 460px at -6% 4%, rgba(192, 106, 97, 0.06), transparent 55%),
+    var(--background);
+  background-attachment: fixed;
 }
 
 /* tabular figures for all data/numbers */
