@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Wallet,
   TrendingUp,
+  BarChart3,
   RefreshCw,
   LogOut,
   Menu,
@@ -22,6 +23,7 @@ import { formatDateTime } from "@/lib/format";
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/holdings", label: "Holdings", icon: Wallet },
+  { href: "/history", label: "History", icon: BarChart3 },
   { href: "/income", label: "Passive Income", icon: TrendingUp },
 ];
 

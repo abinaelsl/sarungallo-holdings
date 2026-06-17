@@ -11,6 +11,10 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
+  ComposedChart,
+  Bar,
+  Line,
+  Legend,
 } from "recharts";
 import { AssetClass, ASSET_CLASS_LABEL } from "@/lib/types";
 import { usePortfolio } from "./PortfolioProvider";
@@ -256,6 +260,147 @@ export function Sparkline({ data }: { data: { value: number }[] }) {
         />
       </AreaChart>
     </ResponsiveContainer>
+  );
+}
+
+/* ── Monthly performance: value bars + invested line (combo) ─────────── */
+export type MonthPoint = {
+  label: string;
+  valueUsd: number;
+  costUsd: number;
+  valueIdr: number;
+  fx: number;
+};
+
+export function MonthlyPerformance({ data }: { data: MonthPoint[] }) {
+  const { currency } = usePortfolio();
+  const isUsd = currency === "USD";
+  if (!data.length)
+    return <Empty label="Refresh prices to start capturing monthly history" />;
+
+  const rows = data.map((d) => ({
+    label: d.label,
+    value: isUsd ? d.valueUsd : d.valueIdr,
+    cost: isUsd ? d.costUsd : d.costUsd * d.fx,
+  }));
+  const fmtAxis = (v: number) => (isUsd ? formatUSD(v, { compact: true }) : formatIDR(v));
+  const fmtFull = (v: number) => (isUsd ? formatUSD(v) : formatIDR(v));
+
+  return (
+    <div className="h-[300px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={rows} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: "var(--color-border)" }}
+            minTickGap={8}
+          />
+          <YAxis
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            width={70}
+            tickFormatter={(v) => fmtAxis(Number(v))}
+          />
+          <Tooltip
+            cursor={{ fill: "var(--color-surface-2)", opacity: 0.5 }}
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const value = Number(payload.find((p) => p.dataKey === "value")?.value ?? 0);
+              const cost = Number(payload.find((p) => p.dataKey === "cost")?.value ?? 0);
+              const pnl = value - cost;
+              return (
+                <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-lg">
+                  <div className="mb-1 text-muted">{label}</div>
+                  <div className="text-gold">Value: {fmtFull(value)}</div>
+                  <div className="text-muted">Invested: {fmtFull(cost)}</div>
+                  <div className={pnl >= 0 ? "text-gain" : "text-loss"}>
+                    P/L: {fmtFull(pnl)}
+                  </div>
+                </div>
+              );
+            }}
+          />
+          <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" />
+          <Bar
+            dataKey="value"
+            name="Value"
+            fill="var(--color-gold)"
+            radius={[5, 5, 0, 0]}
+            maxBarSize={46}
+          />
+          <Line
+            type="monotone"
+            dataKey="cost"
+            name="Invested"
+            stroke="var(--color-burgundy)"
+            strokeWidth={2}
+            dot={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ── USD/IDR exchange rate over time ─────────────────────────────────── */
+export function FxRateChart({ data }: { data: { label: string; fx: number }[] }) {
+  const rows = data.filter((d) => d.fx > 0);
+  if (rows.length < 1) return <Empty label="No exchange-rate history yet" />;
+  return (
+    <div className="h-[220px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={rows} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="fxFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7a2e2a" stopOpacity={0.22} />
+              <stop offset="100%" stopColor="#7a2e2a" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="var(--color-border)" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: "var(--color-border)" }}
+            minTickGap={8}
+          />
+          <YAxis
+            domain={["auto", "auto"]}
+            tick={{ fill: "var(--color-muted)", fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
+            width={48}
+            tickFormatter={(v) => `${(Number(v) / 1000).toFixed(1)}k`}
+          />
+          <Tooltip
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null;
+              const fx = Number(payload[0].value);
+              return (
+                <div className="rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-lg">
+                  <div className="mb-1 text-muted">{label}</div>
+                  <div className="text-foreground">
+                    1 USD = Rp {Math.round(fx).toLocaleString("en-US")}
+                  </div>
+                </div>
+              );
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="fx"
+            stroke="var(--color-burgundy)"
+            strokeWidth={2.25}
+            fill="url(#fxFill)"
+            dot={rows.length < 12 ? { r: 3, fill: "#7a2e2a" } : false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
