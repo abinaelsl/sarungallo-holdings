@@ -21,7 +21,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { formatDateTime } from "@/lib/format";
 
 const NAV = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/holdings", label: "Holdings", icon: Wallet },
   { href: "/history", label: "History", icon: BarChart3 },
   { href: "/income", label: "Passive Income", icon: TrendingUp },
@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const SidebarInner = (
     <div className="flex h-full flex-col">
       <div className="px-5 pb-5 pt-6">
-        <Link href="/" className="block" onClick={() => setMobileOpen(false)}>
+        <Link href="/dashboard" className="block" onClick={() => setMobileOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/brand/logo-horizontal-color.svg"
@@ -89,8 +89,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <nav className="flex-1 space-y-1 px-3">
         {NAV.map((item) => {
           const active =
-            item.href === "/"
-              ? pathname === "/"
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (

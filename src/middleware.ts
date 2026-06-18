@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySessionToken, authEnabled } from "@/lib/auth";
 
 export async function middleware(req: NextRequest) {
+  // Public landing page — always allow.
+  if (req.nextUrl.pathname === "/") return NextResponse.next();
   // No password configured → app is open.
   if (!authEnabled()) return NextResponse.next();
 
