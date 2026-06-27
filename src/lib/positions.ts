@@ -37,7 +37,9 @@ export function computePosition(txns: Transaction[]): Position {
       const sellShares = Math.min(t.shares, shares);
       const avgUsd = shares > 0 ? costUsd / shares : 0;
       const avgNative = shares > 0 ? costNative / shares : 0;
-      const proceedsUsd = (t.shares * t.price_native - (t.fees_native ?? 0)) / fx;
+      const feeNative =
+        t.shares > 0 ? (sellShares / t.shares) * (t.fees_native ?? 0) : 0;
+      const proceedsUsd = (sellShares * t.price_native - feeNative) / fx;
       realized += proceedsUsd - avgUsd * sellShares;
       costUsd -= avgUsd * sellShares;
       costNative -= avgNative * sellShares;

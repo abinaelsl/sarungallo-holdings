@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySessionToken, authEnabled } from "@/lib/auth";
+import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 
 export async function middleware(req: NextRequest) {
-  // No password configured → app is open.
-  if (!authEnabled()) return NextResponse.next();
+  // Fail closed when auth is expected but APP_PASSWORD is missing.
+  if (!process.env.APP_PASSWORD?.trim()) {
+    return NextResponse.json(
+      { ok: false, error: "APP_PASSWORD is not configured" },
+      { status: 401 },
+    );
+  }
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const valid = await verifySessionToken(token);
