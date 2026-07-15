@@ -170,6 +170,10 @@ export function HoldingForm({
         // Native opening price → backend seeds an opening trade & derives USD cost.
         if (form.open_price_native) {
           payload.open_price_native = Number(form.open_price_native);
+        } else if (shares > 0 && !holding) {
+          setSaving(false);
+          setError("Avg. buy price is required when adding a position.");
+          return;
         }
       } else if (isGold) {
         // Cost basis = quantity × cost per unit (grams or ounces).

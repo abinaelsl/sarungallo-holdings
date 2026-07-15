@@ -17,15 +17,11 @@ import {
   Legend,
 } from "recharts";
 import { AssetClass, ASSET_CLASS_LABEL } from "@/lib/types";
+import { CLASS_COLORS } from "@/lib/colors";
 import { usePortfolio } from "./PortfolioProvider";
 import { formatIDR, formatUSD } from "@/lib/format";
 
-export const CLASS_COLORS: Record<AssetClass, string> = {
-  real_estate: "#7a2e2a", // burgundy
-  equity: "#4f6f52", // forest
-  gold: "#b08d3f", // brass-gold
-  crypto: "#566270", // slate
-};
+export { CLASS_COLORS };
 
 const SECTOR_PALETTE = [
   "#b08d3f", // gold

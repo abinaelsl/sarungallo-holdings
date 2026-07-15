@@ -4,7 +4,17 @@ import { useMemo } from "react";
 import { TrendingUp, TrendingDown, ArrowLeftRight, CalendarRange } from "lucide-react";
 import { usePortfolio } from "@/components/PortfolioProvider";
 import { Card, SectionHeader, Skeleton } from "@/components/ui";
-import { MonthlyPerformance, FxRateChart, type MonthPoint } from "@/components/charts";
+import dynamic from "next/dynamic";
+import type { MonthPoint } from "@/components/charts";
+
+const MonthlyPerformance = dynamic(
+  () => import("@/components/charts").then((m) => m.MonthlyPerformance),
+  { ssr: false, loading: () => <div className="h-[300px] animate-pulse rounded-lg bg-surface-2" /> },
+);
+const FxRateChart = dynamic(
+  () => import("@/components/charts").then((m) => m.FxRateChart),
+  { ssr: false, loading: () => <div className="h-[260px] animate-pulse rounded-lg bg-surface-2" /> },
+);
 import { Snapshot } from "@/lib/types";
 import { formatUSD, formatIDR, formatPct, formatDate, gainClass } from "@/lib/format";
 import { cn } from "@/lib/cn";

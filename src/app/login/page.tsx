@@ -5,10 +5,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Lock } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
+/** Only allow same-origin relative paths — blocks //evil.com open redirects. */
+function safeRedirectPath(raw: string | null): string {
+  if (!raw) return "/dashboard";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
-  const from = search.get("from") || "/dashboard";
+  const from = safeRedirectPath(search.get("from"));
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

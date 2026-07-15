@@ -11,32 +11,41 @@ export async function POST() {
   const supabase = getSupabaseAdmin();
 
   const { data: holdings, error } = await supabase.from("sh_holdings").select("*");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Failed to load holdings" }, { status: 500 });
 
   const all = (holdings ?? []) as unknown as Holding[];
 
   // 1) Fetch all live prices + FX in one orchestrated pass.
   const { priced, usdIdr, failures } = await priceHoldings(all);
 
-  // 2) Persist updated market values.
+  // 2) Persist updated market values in parallel (bounded batches).
   const now = new Date().toISOString();
+  const toUpdate = all.filter((h) => priced.has(h.id));
   const updated: Holding[] = [];
-  for (const h of all) {
-    const p = priced.get(h.id);
-    if (!p) continue;
-    const { data: row } = await supabase
-      .from("sh_holdings")
-      .update({
-        currency: p.currency,
-        current_price_native: p.priceNative,
-        current_price_usd: p.pricePerUnitUsd,
-        current_value_usd: p.valueUsd,
-        price_updated_at: now,
-      })
-      .eq("id", h.id)
-      .select()
-      .single();
-    if (row) updated.push(row as unknown as Holding);
+  const BATCH = 10;
+  for (let i = 0; i < toUpdate.length; i += BATCH) {
+    const chunk = toUpdate.slice(i, i + BATCH);
+    const rows = await Promise.all(
+      chunk.map(async (h) => {
+        const p = priced.get(h.id)!;
+        const { data: row } = await supabase
+          .from("sh_holdings")
+          .update({
+            currency: p.currency,
+            current_price_native: p.priceNative,
+            current_price_usd: p.pricePerUnitUsd,
+            current_value_usd: p.valueUsd,
+            price_updated_at: now,
+          })
+          .eq("id", h.id)
+          .select()
+          .single();
+        return row as unknown as Holding | null;
+      }),
+    );
+    for (const row of rows) {
+      if (row) updated.push(row);
+    }
   }
 
   // 3) Recompute totals from freshest values.

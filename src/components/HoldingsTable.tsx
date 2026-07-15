@@ -9,7 +9,7 @@ import { Money, Button, Badge } from "./ui";
 import { formatNumber, formatPct, gainClass } from "@/lib/format";
 import { HoldingForm } from "./HoldingForm";
 import { usePortfolio } from "./PortfolioProvider";
-import { CLASS_COLORS } from "./charts";
+import { CLASS_COLORS } from "@/lib/colors";
 
 export function ClassSection({ assetClass }: { assetClass: AssetClass }) {
   const { holdings, deleteHolding } = usePortfolio();

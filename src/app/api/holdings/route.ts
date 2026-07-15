@@ -54,9 +54,37 @@ export async function POST(req: Request) {
     );
   }
 
+  const ASSET_CLASSES = new Set(["real_estate", "equity", "gold", "crypto"]);
+  if (!ASSET_CLASSES.has(String(row.asset_class))) {
+    return NextResponse.json({ error: "Invalid asset_class" }, { status: 400 });
+  }
+
   // For real estate, seed current value from the manual value immediately.
   if (row.asset_class === "real_estate") {
     row.current_value_usd = row.manual_value_usd ?? row.cost_basis_usd ?? 0;
+  }
+
+  // Equity/crypto with quantity must have an opening price (or USD cost) so
+  // we never leave a position with an empty ledger.
+  const createQty = Number(row.quantity);
+  const cls0 = String(row.asset_class);
+  if ((cls0 === "equity" || cls0 === "crypto") && Number.isFinite(createQty) && createQty > 0) {
+    const openNative = Number(body.open_price_native);
+    const costUsd = Number(row.cost_basis_usd);
+    const hasOpen =
+      (Number.isFinite(openNative) && openNative > 0) ||
+      (Number.isFinite(costUsd) && costUsd > 0);
+    if (!hasOpen) {
+      return NextResponse.json(
+        {
+          error:
+            cls0 === "equity"
+              ? "Opening price is required when quantity is set"
+              : "Cost basis is required when quantity is set",
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const { data, error } = await supabase
@@ -65,7 +93,7 @@ export async function POST(req: Request) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Failed to create holding" }, { status: 500 });
 
   // For tradable assets created with an initial position, seed an opening
   // "buy" so the transaction ledger is the source of truth and the native
@@ -77,7 +105,14 @@ export async function POST(req: Request) {
     let fxRate = 1;
     if (cur !== "USD") {
       const rates = await getFxRates();
-      fxRate = rates[cur] && rates[cur] > 0 ? rates[cur] : 1;
+      if (!rates[cur] || rates[cur] <= 0) {
+        await supabase.from("sh_holdings").delete().eq("id", data.id);
+        return NextResponse.json(
+          { error: `Missing FX rate for ${cur}` },
+          { status: 502 },
+        );
+      }
+      fxRate = rates[cur];
     }
     // Prefer an explicit native opening price; otherwise derive from USD cost.
     let priceNative = Number(body.open_price_native);
@@ -86,9 +121,13 @@ export async function POST(req: Request) {
       priceNative = costUsd > 0 ? (costUsd * fxRate) / qty : NaN;
     }
     if (!Number.isFinite(priceNative) || priceNative <= 0) {
-      return NextResponse.json({ holding: data }, { status: 201 });
+      await supabase.from("sh_holdings").delete().eq("id", data.id);
+      return NextResponse.json(
+        { error: "Could not determine opening price" },
+        { status: 400 },
+      );
     }
-    await supabase.from("sh_transactions").insert({
+    const { error: txnErr } = await supabase.from("sh_transactions").insert({
       holding_id: data.id,
       type: "buy",
       trade_date: (data.acquisition_date as string) || new Date().toISOString().slice(0, 10),
@@ -99,7 +138,16 @@ export async function POST(req: Request) {
       fx_rate: fxRate,
       notes: "Opening balance",
     });
-    await recomputeHolding(supabase, data.id);
+    if (txnErr) {
+      await supabase.from("sh_holdings").delete().eq("id", data.id);
+      return NextResponse.json({ error: "Failed to seed opening trade" }, { status: 500 });
+    }
+    try {
+      await recomputeHolding(supabase, data.id);
+    } catch {
+      await supabase.from("sh_holdings").delete().eq("id", data.id);
+      return NextResponse.json({ error: "Failed to recompute position" }, { status: 500 });
+    }
     const { data: fresh } = await supabase
       .from("sh_holdings")
       .select("*")

@@ -9,7 +9,14 @@ export async function DELETE(
 ) {
   const { id } = await params;
   const supabase = getSupabaseAdmin();
-  const { error } = await supabase.from("sh_dividends").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data, error } = await supabase
+    .from("sh_dividends")
+    .delete()
+    .eq("id", id)
+    .select("id");
+  if (error) return NextResponse.json({ error: "Failed to delete dividend" }, { status: 500 });
+  if (!data?.length) {
+    return NextResponse.json({ error: "Dividend not found" }, { status: 404 });
+  }
   return NextResponse.json({ ok: true });
 }

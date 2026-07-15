@@ -41,7 +41,13 @@ export async function GET(
     .select("*")
     .eq("id", id)
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+  if (error) {
+    const status = error.code === "PGRST116" ? 404 : 500;
+    return NextResponse.json(
+      { error: status === 404 ? "Holding not found" : "Failed to load holding" },
+      { status },
+    );
+  }
   return NextResponse.json({ holding: data });
 }
 
@@ -64,7 +70,7 @@ export async function PUT(
     .eq("id", id)
     .select()
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Failed to update holding" }, { status: 500 });
 
   // Manual position correction: rewrite the ledger to a single opening lot so
   // the corrected quantity / average becomes the source of truth.
@@ -75,7 +81,13 @@ export async function PUT(
     let fxRate = 1;
     if (cur !== "USD") {
       const rates = await getFxRates();
-      fxRate = rates[cur] && rates[cur] > 0 ? rates[cur] : 1;
+      if (!rates[cur] || rates[cur] <= 0) {
+        return NextResponse.json(
+          { error: `Missing FX rate for ${cur}` },
+          { status: 502 },
+        );
+      }
+      fxRate = rates[cur];
     }
     let priceNative = Number(body.open_price_native);
     if (!Number.isFinite(priceNative) || priceNative <= 0) {
@@ -97,7 +109,11 @@ export async function PUT(
         notes: "Opening balance (corrected)",
       });
     }
-    await recomputeHolding(supabase, id);
+    try {
+      await recomputeHolding(supabase, id);
+    } catch {
+      return NextResponse.json({ error: "Failed to recompute position" }, { status: 500 });
+    }
     const { data: fresh } = await supabase
       .from("sh_holdings")
       .select("*")

@@ -51,14 +51,16 @@ export function TradePanel({
         realizedNative: null as number | null,
       };
     }
-    const sellShares = Math.min(shares, q);
+    if (shares > q) {
+      return { error: `Only ${usesLots ? formatNumber(q / lot, 0) + " lots" : formatNumber(q, 4) + " shares"} available to sell.` };
+    }
     return {
       cashNative: shares * p,
-      newQty: Math.max(0, q - shares),
+      newQty: q - shares,
       newAvg: avgNat,
-      realizedNative: sellShares * (p - avgNat),
+      realizedNative: shares * (p - avgNat),
     };
-  }, [price, units, lot, holding, isBuy]);
+  }, [price, units, lot, holding, isBuy, usesLots]);
 
   async function submit() {
     setError(null);
@@ -66,11 +68,17 @@ export function TradePanel({
     const u = parseFloat(units);
     if (!Number.isFinite(p) || p < 0) return setError("Enter a price per share.");
     if (!Number.isFinite(u) || u <= 0) return setError(`Enter the ${unitLabel} to ${type}.`);
+    const shares = u * lot;
+    if (!isBuy && shares > (holding.quantity ?? 0) + 1e-9) {
+      return setError(
+        `Cannot sell more than you hold (${usesLots ? formatNumber((holding.quantity ?? 0) / lot, 0) + " lots" : formatNumber(holding.quantity ?? 0, 4) + " shares"}).`,
+      );
+    }
     setSaving(true);
     const ok = await addTransaction(holding.id, {
       type,
       trade_date: date,
-      shares: u * lot,
+      shares,
       price_native: p,
       currency: cur,
     });
@@ -127,7 +135,10 @@ export function TradePanel({
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
 
-        {preview && (
+        {preview && "error" in preview && (
+          <p className="text-sm text-loss">{preview.error}</p>
+        )}
+        {preview && !("error" in preview) && (
           <div className="rounded-lg border border-border bg-surface-2/60 p-4">
             <div className="grid grid-cols-2 gap-y-2 text-sm">
               <span className="text-muted">{isBuy ? "Cash invested" : "Proceeds"}</span>
