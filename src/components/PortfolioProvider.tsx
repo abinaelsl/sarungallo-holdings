@@ -57,10 +57,14 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     try {
       const [hRes, sRes] = await Promise.all([
         fetch("/api/holdings", { cache: "no-store" }),
-        fetch("/api/snapshots", { cache: "no-store" }),
+        fetch("/api/snapshots?limit=500", { cache: "no-store" }),
       ]);
-      const hJson = await hRes.json();
-      const sJson = await sRes.json();
+      const hJson = await hRes.json().catch(() => ({}));
+      const sJson = await sRes.json().catch(() => ({}));
+      if (!hRes.ok || !sRes.ok) {
+        setLastError(hJson.error || sJson.error || "Failed to load");
+        return;
+      }
       if (hJson.holdings) setHoldings(hJson.holdings);
       if (sJson.snapshots) {
         setSnapshots(sJson.snapshots);
@@ -101,7 +105,13 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       }
       if (json.holdings) setHoldings(json.holdings);
       if (json.fx_usd_idr) setFxUsdIdr(Number(json.fx_usd_idr));
-      await reload();
+      // Append the new snapshot locally — avoid a full holdings+snapshots refetch.
+      if (json.snapshot) {
+        setSnapshots((prev) => {
+          const next = [...prev, json.snapshot as Snapshot];
+          return next.length > 500 ? next.slice(next.length - 500) : next;
+        });
+      }
       return { ok: true, failures: json.failures as string[] };
     } catch (e) {
       setLastError(e instanceof Error ? e.message : "Refresh failed");
@@ -109,7 +119,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setRefreshing(false);
     }
-  }, [reload]);
+  }, []);
 
   const createHolding = useCallback(
     async (input: Partial<HoldingInput>) => {
@@ -197,15 +207,21 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         setLastError(j.error ?? "Could not save dividend");
         return false;
       }
+      await reload();
       return true;
     },
-    [],
+    [reload],
   );
 
-  const deleteDividend = useCallback(async (divId: string) => {
-    const res = await fetch(`/api/dividends/${divId}`, { method: "DELETE" });
-    return res.ok;
-  }, []);
+  const deleteDividend = useCallback(
+    async (divId: string) => {
+      const res = await fetch(`/api/dividends/${divId}`, { method: "DELETE" });
+      if (!res.ok) return false;
+      await reload();
+      return true;
+    },
+    [reload],
+  );
 
   const toDisplay = useCallback(
     (usd: number | null | undefined) => {

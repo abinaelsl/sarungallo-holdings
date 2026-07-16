@@ -48,15 +48,20 @@ export async function getFxRates(): Promise<Record<string, number>> {
   return { USD: 1, IDR: 16500 };
 }
 
+/**
+ * Convert a native-currency amount to USD.
+ * Returns null when the FX rate is missing so callers can fail the holding
+ * instead of silently treating EUR/GBP/etc. as USD 1:1.
+ */
 export function nativeToUsd(
   amount: number,
   currency: string,
   rates: Record<string, number>,
-): number {
+): number | null {
   const cur = (currency || "USD").toUpperCase();
   if (cur === "USD") return amount;
   const rate = rates[cur];
-  if (!rate) return amount; // unknown currency → assume already USD
+  if (!rate || rate <= 0) return null;
   return amount / rate;
 }
 
@@ -102,10 +107,16 @@ const COIN_IDS: Record<string, string> = {
 
 /** Normalize a crypto ticker like "BTC-USD" or "btc" → base symbol "BTC". */
 function cryptoBase(ticker: string): string {
-  return ticker.toUpperCase().replace(/[-/]?USDT?$/i, "").trim();
+  const t = ticker.toUpperCase().trim();
+  // Known full symbols must resolve before stripping quote suffixes —
+  // `/[-/]?USDT?$/i` would otherwise turn "USDT" / "USD" into "".
+  if (COIN_IDS[t]) return t;
+  const stripped = t.replace(/[-/](USD|USDT|USDC)$/i, "").trim();
+  return stripped || t;
 }
 
 async function resolveCoinId(base: string): Promise<string | null> {
+  if (!base) return null;
   if (COIN_IDS[base]) return COIN_IDS[base];
   try {
     const j = await getJson(
@@ -114,10 +125,30 @@ async function resolveCoinId(base: string): Promise<string | null> {
     const hit = j?.coins?.find(
       (c: { symbol: string; id: string }) => c.symbol?.toUpperCase() === base,
     );
-    return hit?.id ?? j?.coins?.[0]?.id ?? null;
+    // Never fall back to coins[0] — that silently prices the wrong asset.
+    return hit?.id ?? null;
   } catch {
     return null;
   }
+}
+
+/** Run async work over items with a fixed concurrency limit. */
+async function mapPool<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  const n = Math.min(concurrency, Math.max(1, items.length));
+  await Promise.all(Array.from({ length: n }, () => worker()));
+  return results;
 }
 
 async function fetchCryptoPrices(
@@ -128,9 +159,13 @@ async function fetchCryptoPrices(
 
   const idByHolding = new Map<string, string>();
   const ids = new Set<string>();
-  for (const h of cryptos) {
-    const base = cryptoBase(h.ticker || h.name);
-    const id = await resolveCoinId(base);
+  const bases = cryptos.map((h) => ({ h, base: cryptoBase(h.ticker || h.name) }));
+  // Resolve unknown symbols in parallel (capped) instead of N sequential searches.
+  const resolved = await mapPool(bases, 4, async ({ h, base }) => ({
+    h,
+    id: await resolveCoinId(base),
+  }));
+  for (const { h, id } of resolved) {
     if (id) {
       idByHolding.set(h.id, id);
       ids.add(id);
@@ -322,12 +357,12 @@ async function fetchStockPrices(
     for (const [k, v] of td) out.set(k, v);
   }
 
-  // 3) Yahoo as last resort.
-  for (const h of equities) {
-    if (out.has(h.id) || !h.ticker) continue;
-    const q = await fetchYahooChart(h.ticker);
+  // 3) Yahoo as last resort — parallel with a small concurrency cap.
+  const yahooMissing = equities.filter((h) => !out.has(h.id) && h.ticker);
+  await mapPool(yahooMissing, 4, async (h) => {
+    const q = await fetchYahooChart(h.ticker!);
     if (q) out.set(h.id, q);
-  }
+  });
   return out;
 }
 
@@ -386,14 +421,29 @@ export async function priceHoldings(
       continue;
     }
 
-    const pricePerUnitUsd = nativeToUsd(priceNative, currency, rates);
-    let qty = h.quantity ?? 0;
-    if (h.asset_class === "gold" && h.unit && h.unit.toLowerCase().startsWith("g")) {
-      qty = qty / GRAMS_PER_TROY_OUNCE; // stored in grams, priced per ounce
+    // Gold quote is USD/oz; when quantity is in grams, persist unit prices per gram
+    // so quantity * current_price_usd is always correct later.
+    const goldInGrams =
+      h.asset_class === "gold" &&
+      !!h.unit &&
+      h.unit.toLowerCase().startsWith("g");
+
+    let unitNative = priceNative;
+    if (goldInGrams) {
+      unitNative = priceNative / GRAMS_PER_TROY_OUNCE;
     }
 
+    const pricePerUnitUsd = nativeToUsd(unitNative, currency, rates);
+    if (pricePerUnitUsd == null) {
+      failures.push(
+        `${h.name}${h.ticker ? ` (${h.ticker})` : ""} — missing FX for ${currency}`,
+      );
+      continue;
+    }
+
+    const qty = h.quantity ?? 0;
     priced.set(h.id, {
-      priceNative,
+      priceNative: unitNative,
       currency,
       pricePerUnitUsd,
       valueUsd: qty * pricePerUnitUsd,

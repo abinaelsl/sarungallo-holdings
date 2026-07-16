@@ -16,7 +16,12 @@ import { HoldingForm } from "@/components/HoldingForm";
 import { TradePanel } from "@/components/TradePanel";
 import { AvgCalcPanel } from "@/components/AvgCalcPanel";
 import { DividendPanel } from "@/components/DividendPanel";
-import { ValueOverTime } from "@/components/charts";
+import dynamic from "next/dynamic";
+
+const ValueOverTime = dynamic(
+  () => import("@/components/charts").then((m) => m.ValueOverTime),
+  { ssr: false, loading: () => <div className="h-[220px] animate-pulse rounded-lg bg-surface-2" /> },
+);
 import {
   holdingValueUsd,
   holdingPnlUsd,

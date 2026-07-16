@@ -37,14 +37,16 @@ export function AvgCalcPanel({ holding }: { holding: Holding }) {
     // x = currentShares * (T - curAvg) / (P - T)
     const x = (curShares * (T - curAvg)) / (P - T);
     if (!Number.isFinite(x) || x <= 0) return { error: "No solution for those values." };
-    const cost = x * P;
+    // Round lots up so cash / resulting holding match the whole-lot purchase.
+    const buyShares = usesLots ? Math.ceil(x / lot) * lot : x;
+    const cost = buyShares * P;
     return {
-      shares: x,
-      lots: x / lot,
+      shares: buyShares,
+      lots: buyShares / lot,
       cost,
-      newShares: curShares + x,
+      newShares: curShares + buyShares,
     };
-  }, [target, buy, curAvg, curShares, lot, cur]);
+  }, [target, buy, curAvg, curShares, lot, cur, usesLots]);
 
   return (
     <div className="max-w-md">
@@ -103,12 +105,12 @@ export function AvgCalcPanel({ holding }: { holding: Holding }) {
           <div className="text-muted">You need to buy</div>
           <div className="mt-1 font-serif text-2xl text-foreground">
             {usesLots
-              ? `${formatNumber(Math.ceil(result.lots), 0)} lots`
+              ? `${formatNumber(result.lots, 0)} lots`
               : `${formatNumber(result.shares, 4)} shares`}
           </div>
           {usesLots && (
             <div className="text-xs text-muted">
-              ≈ {formatNumber(result.shares, 0)} shares
+              {formatNumber(result.shares, 0)} shares
             </div>
           )}
           <div className="mt-3 grid grid-cols-2 gap-y-1.5">

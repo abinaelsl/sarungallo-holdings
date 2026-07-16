@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { SESSION_COOKIE, authEnabled, verifySessionToken } from "@/lib/auth";
 
 export async function middleware(req: NextRequest) {
   // Fail closed when auth is expected but APP_PASSWORD is missing.
-  if (!process.env.APP_PASSWORD?.trim()) {
+  if (!authEnabled()) {
+    if (req.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { ok: false, error: "APP_PASSWORD is not configured" },
+        { status: 401 },
+      );
+    }
     return NextResponse.json(
       { ok: false, error: "APP_PASSWORD is not configured" },
       { status: 401 },
@@ -13,6 +19,11 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const valid = await verifySessionToken(token);
   if (valid) return NextResponse.next();
+
+  // API clients expect JSON, not an HTML login redirect.
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const url = req.nextUrl.clone();
   url.pathname = "/login";

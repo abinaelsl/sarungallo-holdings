@@ -26,10 +26,11 @@ export function avgCostUsd(h: Holding): number | null {
 
 /** Indonesian exchange equities trade in lots of 100 shares. */
 export function isIdx(h: Holding): boolean {
+  // Drive lots from exchange / .JK only — bare IDR currency alone is not
+  // enough (e.g. "Other" + IDR should stay in shares).
   return (
     h.ticker?.toUpperCase().endsWith(".JK") === true ||
-    h.exchange?.toUpperCase() === "IDX" ||
-    (h.asset_class === "equity" && (h.currency || "").toUpperCase() === "IDR")
+    h.exchange?.toUpperCase() === "IDX"
   );
 }
 

@@ -16,14 +16,29 @@ import {
 import { usePortfolio } from "@/components/PortfolioProvider";
 import { Card, Money, SectionHeader, Skeleton } from "@/components/ui";
 import { computeTotals, holdingPnlUsd } from "@/lib/calc";
-import {
-  AllocationDonut,
-  ValueOverTime,
-  SectorBreakdown,
-  Sparkline,
-  CLASS_COLORS,
-} from "@/components/charts";
+import dynamic from "next/dynamic";
+import { CLASS_COLORS } from "@/lib/colors";
 import { ASSET_CLASS_LABEL, AssetClass, Holding } from "@/lib/types";
+
+const chartFallback = (
+  <div className="h-[260px] animate-pulse rounded-lg bg-surface-2" />
+);
+const AllocationDonut = dynamic(
+  () => import("@/components/charts").then((m) => m.AllocationDonut),
+  { ssr: false, loading: () => chartFallback },
+);
+const ValueOverTime = dynamic(
+  () => import("@/components/charts").then((m) => m.ValueOverTime),
+  { ssr: false, loading: () => chartFallback },
+);
+const SectorBreakdown = dynamic(
+  () => import("@/components/charts").then((m) => m.SectorBreakdown),
+  { ssr: false, loading: () => chartFallback },
+);
+const Sparkline = dynamic(
+  () => import("@/components/charts").then((m) => m.Sparkline),
+  { ssr: false },
+);
 import { formatPct, gainClass, formatDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import Link from "next/link";

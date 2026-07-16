@@ -47,8 +47,12 @@ function recordFailedAttempt(ip: string): void {
 }
 
 export async function POST(req: Request) {
+  // Match middleware fail-closed: without APP_PASSWORD the app is unreachable.
   if (!authEnabled()) {
-    return NextResponse.json({ ok: true, note: "auth disabled" });
+    return NextResponse.json(
+      { ok: false, error: "APP_PASSWORD is not configured" },
+      { status: 503 },
+    );
   }
 
   const ip = getClientIp(req);

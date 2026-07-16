@@ -59,7 +59,7 @@ export async function verifySessionToken(token: string | undefined): Promise<boo
   return mismatch === 0;
 }
 
-/** If no password is configured, the app runs open (useful for first-run). */
+/** True when a non-empty APP_PASSWORD is configured (matches middleware). */
 export function authEnabled(): boolean {
-  return Boolean(process.env.APP_PASSWORD);
+  return Boolean(process.env.APP_PASSWORD?.trim());
 }

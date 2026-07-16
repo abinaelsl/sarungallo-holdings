@@ -39,23 +39,41 @@ export async function POST(
     return NextResponse.json({ error: "price is required" }, { status: 400 });
   }
 
-  // Resolve the trading currency (fall back to the holding's currency).
-  let currency = (body.currency as string) || "";
-  if (!currency) {
-    const { data: h } = await supabase
-      .from("sh_holdings")
-      .select("currency")
-      .eq("id", id)
-      .single();
-    currency = (h?.currency as string) || "USD";
+  const { data: holdingRow, error: holdingErr } = await supabase
+    .from("sh_holdings")
+    .select("currency, quantity")
+    .eq("id", id)
+    .single();
+  if (holdingErr || !holdingRow) {
+    return NextResponse.json({ error: "Holding not found" }, { status: 404 });
   }
-  currency = currency.toUpperCase();
+
+  // Reject oversells so the ledger never stores shares the position didn't have.
+  if (type === "sell") {
+    const available = Number(holdingRow.quantity) || 0;
+    if (shares > available + 1e-9) {
+      return NextResponse.json(
+        {
+          error: `Cannot sell ${shares}: only ${available} shares available`,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
+  const currency = ((body.currency as string) || (holdingRow.currency as string) || "USD").toUpperCase();
 
   // Native units per 1 USD at trade time (1 for USD).
   let fxRate = 1;
   if (currency !== "USD") {
     const rates = await getFxRates();
-    fxRate = rates[currency] && rates[currency] > 0 ? rates[currency] : 1;
+    if (!rates[currency] || rates[currency] <= 0) {
+      return NextResponse.json(
+        { error: `Missing FX rate for ${currency}` },
+        { status: 502 },
+      );
+    }
+    fxRate = rates[currency];
   }
 
   const { data: txn, error } = await supabase
@@ -74,9 +92,17 @@ export async function POST(
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: "Failed to save transaction" }, { status: 500 });
 
-  const position = await recomputeHolding(supabase, id);
+  let position;
+  try {
+    position = await recomputeHolding(supabase, id);
+  } catch {
+    return NextResponse.json(
+      { error: "Transaction saved but position recompute failed" },
+      { status: 500 },
+    );
+  }
   const { data: holding } = await supabase
     .from("sh_holdings")
     .select("*")

@@ -71,18 +71,27 @@ export async function recomputeHolding(
   supabase: SupabaseClient<any, "public", any>,
   holdingId: string,
 ): Promise<Position> {
-  const { data: txns } = await supabase
+  const { data: txns, error: txnError } = await supabase
     .from("sh_transactions")
     .select("*")
     .eq("holding_id", holdingId);
 
+  // Fail closed: never rewrite quantity/cost to zero on a failed ledger read.
+  if (txnError) {
+    throw new Error(`Failed to load transactions: ${txnError.message}`);
+  }
+
   const pos = computePosition((txns ?? []) as unknown as Transaction[]);
 
-  const { data: holding } = await supabase
+  const { data: holding, error: holdingError } = await supabase
     .from("sh_holdings")
-    .select("current_price_usd")
+    .select("current_price_usd, asset_class, unit")
     .eq("id", holdingId)
     .single();
+
+  if (holdingError) {
+    throw new Error(`Failed to load holding: ${holdingError.message}`);
+  }
 
   const unitUsd = holding?.current_price_usd as number | null | undefined;
   const update: Record<string, unknown> = {
@@ -91,9 +100,17 @@ export async function recomputeHolding(
     avg_cost_native: pos.avg_cost_native,
   };
   if (typeof unitUsd === "number") {
+    // current_price_usd is always the price of one quantity unit
+    // (per gram when gold is stored in grams).
     update.current_value_usd = pos.quantity * unitUsd;
   }
 
-  await supabase.from("sh_holdings").update(update).eq("id", holdingId);
+  const { error: updateError } = await supabase
+    .from("sh_holdings")
+    .update(update)
+    .eq("id", holdingId);
+  if (updateError) {
+    throw new Error(`Failed to update holding: ${updateError.message}`);
+  }
   return pos;
 }
