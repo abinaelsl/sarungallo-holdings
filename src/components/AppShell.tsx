@@ -14,6 +14,7 @@ import {
   X,
   Check,
   AlertTriangle,
+  PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { usePortfolio } from "./PortfolioProvider";
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/holdings", label: "Holdings", icon: Wallet },
   { href: "/history", label: "History", icon: BarChart3 },
   { href: "/income", label: "Passive Income", icon: TrendingUp },
+  { href: "/retirement", label: "Retirement", icon: PiggyBank },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
