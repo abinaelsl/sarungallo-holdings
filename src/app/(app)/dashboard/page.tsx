@@ -10,6 +10,8 @@ import {
   Bitcoin,
   Wallet,
   Percent,
+  PiggyBank,
+  ChevronRight,
 } from "lucide-react";
 import { usePortfolio } from "@/components/PortfolioProvider";
 import { Card, Money, SectionHeader, Skeleton } from "@/components/ui";
@@ -70,12 +72,21 @@ export default function DashboardPage() {
         <p className="mt-2 text-muted">
           Your portfolio is empty. Add your first holding to begin tracking.
         </p>
-        <Link
-          href="/holdings"
-          className="mt-6 inline-block rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-[#1c1a18] hover:bg-gold-soft"
-        >
-          Add holdings
-        </Link>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/holdings"
+            className="inline-block rounded-lg bg-gold px-5 py-2.5 text-sm font-semibold text-[#1c1a18] hover:bg-gold-soft"
+          >
+            Add holdings
+          </Link>
+          <Link
+            href="/retirement"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-medium text-foreground hover:bg-surface-2"
+          >
+            <PiggyBank size={16} className="text-gold" />
+            Family Retirement
+          </Link>
+        </div>
       </div>
     );
   }
@@ -90,6 +101,26 @@ export default function DashboardPage() {
         <h1 className="mt-1 font-serif text-3xl text-foreground">Portfolio Overview</h1>
         <div className="rule-gold mt-3 w-28" />
       </div>
+
+      {/* Retirement entry point */}
+      <Link href="/retirement" className="block fade-up" style={{ animationDelay: "40ms" }}>
+        <Card interactive accent className="flex flex-wrap items-center justify-between gap-4 py-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 rounded-lg bg-gold-tint/70 p-2.5 text-gold">
+              <PiggyBank size={20} />
+            </div>
+            <div>
+              <div className="font-serif text-lg text-foreground">Family Retirement</div>
+              <p className="mt-0.5 text-sm text-muted">
+                Himbara dividends · cash flow · tax · Prioritas · KrisFlyer miles
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1 text-sm font-medium text-gold">
+            Open dashboard <ChevronRight size={16} />
+          </span>
+        </Card>
+      </Link>
 
       {/* Hero value band */}
       <Card accent className="fade-up overflow-hidden p-0" style={{ animationDelay: "60ms" }}>
