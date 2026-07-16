@@ -14,6 +14,7 @@ import {
   X,
   Check,
   AlertTriangle,
+  PiggyBank,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { usePortfolio } from "./PortfolioProvider";
@@ -25,6 +26,7 @@ const NAV = [
   { href: "/holdings", label: "Holdings", icon: Wallet },
   { href: "/history", label: "History", icon: BarChart3 },
   { href: "/income", label: "Passive Income", icon: TrendingUp },
+  { href: "/retirement", label: "Retirement", icon: PiggyBank },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -163,6 +165,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/retirement"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                pathname.startsWith("/retirement")
+                  ? "border-gold/40 bg-gold-tint/60 text-foreground"
+                  : "border-border bg-surface text-muted hover:text-foreground",
+              )}
+            >
+              <PiggyBank size={14} className="text-gold" />
+              <span className="hidden sm:inline">Retirement</span>
+            </Link>
             <ThemeToggle />
             {/* Currency toggle */}
             <div className="flex rounded-lg border border-border bg-surface p-0.5">

@@ -36,6 +36,26 @@ export function formatIDR(value: number | null | undefined): string {
   return `Rp ${Math.round(value).toLocaleString("en-US")}`;
 }
 
+/** Full Indonesian rupiah: Rp1.234.567 (no decimals unless requested). */
+export function formatRp(
+  value: number | null | undefined,
+  opts?: { decimals?: number; compact?: boolean },
+): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  if (opts?.compact) return formatIDR(value).replace("Rp ", "Rp");
+  const decimals = opts?.decimals ?? 0;
+  return `Rp${value.toLocaleString("id-ID", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
+}
+
+/** Percentage to exactly 2 decimal places (no forced + sign). */
+export function formatPct2(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${value.toFixed(2)}%`;
+}
+
 /** Format a value in its native trading currency (IDR uses id-ID grouping). */
 export function formatNative(
   value: number | null | undefined,
